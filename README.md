@@ -17,7 +17,8 @@ markdown folders ──(sync.mjs, scheduled)──▶ Apps Script doPost ──�
 - `sync/sync.mjs` — zero-dependency Node script: scan, parse, validate, POST.
 - `config.work.json` — **gitignored**: projects dir, webhook URL, secret, read token.
 - `config.work.example.json` — committed placeholder shape.
-- `ui/` — React + TS dashboard (phase 3).
+- `ui/` — the React + TS dashboard (see Dashboard below).
+- `.github/workflows/deploy-ui.yml` — builds `ui/` and publishes it to GitHub Pages on push.
 
 ## One-time Google setup (~5 min)
 
@@ -52,6 +53,26 @@ Scheduling (once the webhook works): a Task Scheduler job runs the sync every 20
 ```
 schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.steph\src\project-manager\sync\sync.mjs\"" /SC MINUTE /MO 20 /F
 ```
+
+## Dashboard
+
+React + TypeScript (Vite), read-only, zero runtime deps beyond React. Views: **Overview** (the
+Summary brief, stat tiles, needs-attention / gone-quiet / file-issue lists, latest activity),
+**Projects** (status filters + sortable table), and a per-project **log timeline**.
+
+Local dev: `npm --prefix ui run dev` → http://localhost:5173 (or the `pm-ui` launch config).
+
+First deploy to GitHub Pages:
+
+1. Create a GitHub repo and push this folder to `main` (the repo contains no secrets — config is
+   gitignored; the dashboard never embeds the endpoint).
+2. Repo **Settings → Pages → Source: GitHub Actions**.
+3. The *Deploy dashboard* workflow builds and publishes on every push that touches `ui/`.
+
+Connecting: the app asks for the endpoint URL + read token once and keeps them in localStorage —
+never in the repo or the built bundle. To hand it to a coworker, send a one-time link:
+`https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>` — the app
+stores the values, then scrubs them from the address bar.
 
 ## Security model
 
