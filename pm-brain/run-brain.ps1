@@ -28,6 +28,12 @@ $prompt = (Get-Content (Join-Path $repo 'pm-brain\prompt.md') -Raw) + "`nToday i
 Write-Host "Running the PM brain - this takes a couple of minutes..."
 Write-Host ""
 $prompt | & $exe -p --allowedTools "Read,Glob,Grep,Write,Bash"
+if ($LASTEXITCODE -ne 0) {
+  Write-Host ""
+  Write-Host "!!! The brain did NOT run - see the message above." -ForegroundColor Red
+  Write-Host "!!! If it says 'Failed to authenticate': double-click login-cli.cmd in this folder," -ForegroundColor Red
+  Write-Host "!!! type /login, finish the browser sign-in, type /exit - then run PM Brain again." -ForegroundColor Red
+}
 Write-Host ""
 Write-Host "Safety net: commit + sync in case the run skipped them..."
 & git -C $projects add -A
