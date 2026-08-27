@@ -1,0 +1,6 @@
+{
+  "projectsDir": "O:\\CGI\\R_n_D\\work.steph\\projects",
+  "webhookUrl": "PASTE_WEB_APP_EXEC_URL_HERE",
+  "secret": "GENERATE_A_LONG_RANDOM_STRING",
+  "readToken": "GENERATE_A_DIFFERENT_LONG_RANDOM_STRING"
+}

@@ -1,0 +1,4 @@
+config.work.json
+config.life.json
+node_modules/
+dist/

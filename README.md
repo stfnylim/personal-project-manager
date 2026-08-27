@@ -1,0 +1,62 @@
+# Project Manager
+
+Turns markdown project logs (written by AI chat sessions into
+`O:\CGI\R_n_D\work.steph\projects\`) into a Google Sheet and a web dashboard.
+Full design in [SCOPE.md](SCOPE.md); the data-folder conventions live in the data folder's
+`PROTOCOL.md`.
+
+```
+markdown folders ──(sync.mjs, scheduled)──▶ Apps Script doPost ──▶ Google Sheet
+                                                                     │  doGet JSON
+                                             coworker (sheet) ◀──────┴──▶ React dashboard
+```
+
+## Layout
+
+- `appsscript/Code.gs` — code for the Apps Script bound to the sheet (doPost webhook + doGet JSON).
+- `sync/sync.mjs` — zero-dependency Node script: scan, parse, validate, POST.
+- `config.work.json` — **gitignored**: projects dir, webhook URL, secret, read token.
+- `config.work.example.json` — committed placeholder shape.
+- `ui/` — React + TS dashboard (phase 3).
+
+## One-time Google setup (~5 min)
+
+1. Create a blank spreadsheet at sheets.google.com (name it e.g. **Work PM**). The tabs are
+   created automatically on first sync.
+2. In the sheet: **Extensions → Apps Script**. Delete the stub code and paste all of
+   `appsscript/Code.gs`.
+3. Replace the two constants at the top (`SECRET`, `READ_TOKEN`) with the `secret` and
+   `readToken` values from your local `config.work.json`. Never commit or share those values.
+4. **Deploy → New deployment → type: Web app** — Execute as: **Me**, Who has access: **Anyone**.
+   Authorize when prompted (it only touches this spreadsheet).
+5. Copy the Web app URL (ends in `/exec`) into `config.work.json` as `webhookUrl`.
+6. Test: `node sync/sync.mjs` — the tabs should appear and fill.
+
+**After editing Code.gs later:** Deploy → Manage deployments → pencil → Version: *New version* →
+Deploy. Saving alone does not update the live URL.
+
+Sharing with a coworker: share the spreadsheet read-only, or (phase 3) give them the dashboard
+link once — the dashboard reads `doGet?token=…` and stores the endpoint in localStorage, so
+nothing private lives in this repo or the deployed bundle.
+
+## Usage
+
+```
+node sync/sync.mjs               # parse, validate, push to the sheet
+node sync/sync.mjs --dry-run     # parse + validate only, print payload
+node sync/sync.mjs --config config.life.json    # a second instance (separate folder + sheet)
+```
+
+Scheduling (once the webhook works): a Task Scheduler job runs the sync every 20 minutes —
+
+```
+schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.steph\src\project-manager\sync\sync.mjs\"" /SC MINUTE /MO 20 /F
+```
+
+## Security model
+
+- The sync POSTs with a shared `secret`; the dashboard reads with a `readToken`. Both live only
+  in the gitignored config and inside the Apps Script deployment.
+- The endpoint is "anyone with URL + token" — obscurity-grade by design. The data folder's
+  PROTOCOL.md therefore bans secrets and client-confidential details in project files.
+- The sheet is never a source: hand-edits to synced cells get overwritten on the next sync.
