@@ -1,5 +1,6 @@
 config.work.json
 config.life.json
 sync/last-run.log
+pm-brain/last-run.log
 node_modules/
 dist/

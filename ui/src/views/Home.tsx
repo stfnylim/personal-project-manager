@@ -1,7 +1,8 @@
 import type { PmData, Project } from '../api';
 import { daysSince } from '../api';
 import { Markdown } from '../markdown';
-import { StatTile, StatusBadge, UrgencyBadge } from '../components';
+import { CopyButton, StatTile, StatusBadge, UrgencyBadge } from '../components';
+import { NEW_PROJECT_PROMPT, addProjectPrompt } from '../prompts';
 
 function ProjectRow({ p, note }: { p: Project; note?: string }) {
   return (
@@ -43,6 +44,17 @@ export function Home({ data }: { data: PmData }) {
         <StatTile label="backlog" value={count('backlog')} kind="muted" />
         <StatTile label="done" value={count('done')} kind="good" />
       </div>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Chat prompts</h2>
+          <span className="meta">paste into a Claude/Codex chat to hook it into this tracker</span>
+        </div>
+        <div className="prompt-row">
+          <CopyButton label="copy new project prompt" text={NEW_PROJECT_PROMPT} />
+          <CopyButton label="copy add project prompt" text={addProjectPrompt()} />
+        </div>
+      </section>
 
       {attention.length > 0 && (
         <section className="card">

@@ -99,6 +99,31 @@ export function ProgressBar({ progress }: { progress: string }) {
   );
 }
 
+/** Copies text to the clipboard with a brief "copied" confirmation. */
+export function CopyButton({ label, text }: { label: string; text: string }) {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // clipboard API unavailable (older browser / odd context) — textarea fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    setDone(true);
+    window.setTimeout(() => setDone(false), 1600);
+  };
+  return (
+    <button className={done ? 'copied' : undefined} onClick={() => void copy()}>
+      {done ? 'copied ✓' : label}
+    </button>
+  );
+}
+
 export function StatTile({ label, value, kind }: { label: string; value: number | string; kind?: string }) {
   return (
     <div className="tile">

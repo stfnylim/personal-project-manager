@@ -263,6 +263,18 @@ button.ghost:hover {
   background: var(--muted);
 }
 
+/* Copy-prompt buttons */
+.prompt-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+button.copied {
+  border-color: var(--good);
+  color: var(--good);
+}
+
 /* Status dropdown — dressed as a badge; native menu keeps accessibility */
 .status-select {
   font: inherit;

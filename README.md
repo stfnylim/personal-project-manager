@@ -56,7 +56,10 @@ schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.s
 
 ## Dashboard
 
-React + TypeScript (Vite), zero runtime deps beyond React. Views: **Overview** (the
+React + TypeScript (Vite), zero runtime deps beyond React. The Overview page also has
+**copy new project prompt** / **copy add project prompt** buttons (and each project page a
+pre-filled variant) — paste into any Claude/Codex chat to hook that chat into the tracker; the
+prompt texts live in `ui/src/prompts.ts`. Views: **Overview** (the
 Summary brief, stat tiles, needs-attention / gone-quiet / file-issue lists, latest activity),
 **Projects** (status filters + sortable table), and a per-project **log timeline**.
 
@@ -97,6 +100,22 @@ Connecting: the app asks for the endpoint URL + read token once and keeps them i
 never in the repo or the built bundle. To hand it to a coworker, send a one-time link:
 `https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>` — the app
 stores the values, then scrubs them from the address bar.
+
+## PM brain
+
+A scheduled agent (phase 4) that rewrites `BRIEF.md` in the projects folder — headline, "needs
+attention", "gone quiet" (stale >7 days), and backlog-watch sections — then commits and runs the
+sync so the brief lands in the sheet's **Summary** tab and the dashboard home screen.
+
+- The canonical instructions live in `pm-brain/prompt.md` — edit that file to tune the brief.
+- It runs as a **Claude desktop app scheduled task** (`work-pm-brief`, weekday mornings, visible
+  under "Scheduled" in the app sidebar). Tasks run while the app is open; if the app was closed
+  at the scheduled time, the run happens on next launch. Use "Run now" in the sidebar for an
+  on-demand brief.
+- `pm-brain/run-brain.ps1` is a fallback that drives the CLI headlessly (Task Scheduler-able).
+  Note: the CLI's auth is separate from the desktop app's — run the bundled
+  `%APPDATA%\Claude\claude-code\<version>\claude.exe` interactively and log in once before
+  relying on it.
 
 ## Security model
 

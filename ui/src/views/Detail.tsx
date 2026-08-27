@@ -1,5 +1,6 @@
 import type { EditableField, PmData } from '../api';
-import { ProgressBar, StatusControl, UrgencyControl } from '../components';
+import { CopyButton, ProgressBar, StatusControl, UrgencyControl } from '../components';
+import { addProjectPrompt } from '../prompts';
 
 export function Detail({
   data,
@@ -48,6 +49,9 @@ export function Detail({
         <p className="meta">
           id: {p.id} · last update {p.last_update}
         </p>
+        <div className="prompt-row">
+          <CopyButton label="copy chat prompt for this project" text={addProjectPrompt(p.id)} />
+        </div>
       </section>
       <section className="card">
         <div className="card-head">
