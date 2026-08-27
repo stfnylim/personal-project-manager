@@ -1,3 +1,5 @@
+import type { Project, Update } from './api';
+
 /** Canonical chat prompts behind the dashboard's copy buttons. Each source
  *  (instance) has its own projects folder; pass its `projectsDir` when known so
  *  the prompt names the exact path. Without one, the prompt points the assistant
@@ -32,6 +34,47 @@ export function taskPrompt(projectId: string, taskText: string, dir?: string): s
 3. Tell me your plan for this task before making changes.
 
 ${TAIL}`;
+}
+
+/** Everything the dashboard knows about a task's project, for a self-contained
+ *  kickoff prompt (the "start" buttons). */
+export interface TaskContext {
+  project: Project;
+  /** this project's log entries, any order */
+  updates: Update[];
+  /** other still-open task texts in the same project */
+  openSiblings: string[];
+  dir?: string;
+}
+
+/** Task kickoff with tracker context baked in: goal, status, recent log, and
+ *  what else is open — so the receiving chat starts oriented, then still reads
+ *  the files as the source of truth. */
+export function taskStartPrompt(ctx: TaskContext, taskText: string): string {
+  const p = ctx.project;
+  const recent = [...ctx.updates]
+    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1))
+    .slice(0, 3)
+    .map((u) => `  - ${u.timestamp}: ${u.entry.split('\n')[0]}`);
+  const lines = [
+    `Project tracking: continue work on the project "${p.id}" (${p.name}) in my project manager.`,
+    '',
+    'What the tracker knows right now:',
+    `- Goal: ${p.summary}`,
+    `- Status: ${p.status}, urgency ${p.urgency}, tasks done ${p.progress || '—'}`,
+  ];
+  if (recent.length) lines.push('- Recent log (newest first):', ...recent);
+  if (ctx.openSiblings.length)
+    lines.push(`- Other open tasks (NOT this session's focus): ${ctx.openSiblings.join('; ')}`);
+  lines.push(
+    '',
+    `1. ${dirLine(ctx.dir)} Then read this project's project.md and log.md — the files are the source of truth if they disagree with the summary above.`,
+    `2. The task to work on right now: ${taskText}`,
+    '3. Tell me your plan for this task before making changes.',
+    '',
+    TAIL,
+  );
+  return lines.join('\n');
 }
 
 export function addProjectPrompt(dir?: string, projectId?: string): string {

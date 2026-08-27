@@ -1,7 +1,7 @@
 import type { EditableField, Source, TaskOp } from '../api';
 import type { SourceState } from '../App';
 import { CopyButton, ProgressBar, RepoLink, SrcTag, StatusControl, TaskItem, UrgencyControl } from '../components';
-import { addProjectPrompt } from '../prompts';
+import { addProjectPrompt, taskStartPrompt } from '../prompts';
 
 export function Detail({
   states,
@@ -86,6 +86,15 @@ export function Detail({
                 key={i}
                 t={t}
                 dir={source.projectsDir}
+                startText={taskStartPrompt(
+                  {
+                    project: p,
+                    updates: st.data?.updates.filter((u) => u.project === id) ?? [],
+                    openSiblings: tasks.filter((x) => x.done !== 'done' && x.task !== t.task).map((x) => x.task),
+                    dir: source.projectsDir,
+                  },
+                  t.task,
+                )}
                 onTask={canWrite ? (op, state) => taskChange(srcId, id, t.task, op, state) : undefined}
               />
             ))}

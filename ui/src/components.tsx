@@ -166,10 +166,13 @@ export function TaskItem({
   t,
   onTask,
   dir,
+  startText,
 }: {
   t: TaskRow;
   onTask?: (op: TaskOp, state?: string) => Promise<boolean>;
   dir?: string;
+  /** pre-built context-rich kickoff prompt; falls back to the generic template */
+  startText?: string;
 }) {
   const cls = t.done === 'done' ? 'task-done' : t.done === 'wip' ? 'task-wip' : undefined;
   const glyph = t.done === 'done' ? '☑' : t.done === 'wip' ? '◐' : '☐';
@@ -191,7 +194,7 @@ export function TaskItem({
           </button>
         </span>
       )}
-      {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(t.project, t.task, dir)} />}
+      {t.done !== 'done' && <CopyButton label="start" text={startText ?? taskPrompt(t.project, t.task, dir)} />}
     </li>
   );
 }

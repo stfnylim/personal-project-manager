@@ -3,7 +3,7 @@ import type { EditableField, Project, Source, Tagged } from '../api';
 import { projHref } from '../api';
 import type { SourceState } from '../App';
 import { CopyButton, ProgressBar, SrcTag, StatusControl, UrgencyControl } from '../components';
-import { taskPrompt } from '../prompts';
+import { taskStartPrompt } from '../prompts';
 
 const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -133,9 +133,18 @@ export function Projects({
                   {(() => {
                     const open = allTasks.filter((t) => t.srcId === p.srcId && t.project === p.id && t.done !== 'done');
                     const next = open.find((t) => t.done === 'wip') ?? open[0]; // prefer in-progress
-                    return next ? (
-                      <CopyButton label="⚡ start next" text={taskPrompt(p.id, next.task, srcOf(p.srcId)?.projectsDir)} />
-                    ) : null;
+                    if (!next) return null;
+                    const src = states.find((s) => s.source.id === p.srcId);
+                    const prompt = taskStartPrompt(
+                      {
+                        project: p,
+                        updates: src?.data?.updates.filter((u) => u.project === p.id) ?? [],
+                        openSiblings: open.filter((t) => t.task !== next.task).map((t) => t.task),
+                        dir: srcOf(p.srcId)?.projectsDir,
+                      },
+                      next.task,
+                    );
+                    return <CopyButton label="⚡ start next" text={prompt} />;
                   })()}
                 </td>
               </tr>
