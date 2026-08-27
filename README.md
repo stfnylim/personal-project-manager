@@ -120,10 +120,10 @@ sync so the brief lands in the sheet's **Summary** tab and the dashboard home sc
   under "Scheduled" in the app sidebar). Tasks run while the app is open; if the app was closed
   at the scheduled time, the run happens on next launch. Use "Run now" in the sidebar for an
   on-demand brief.
-- `pm-brain/run-brain.ps1` is a fallback that drives the CLI headlessly (Task Scheduler-able).
-  Note: the CLI's auth is separate from the desktop app's — run the bundled
-  `%APPDATA%\Claude\claude-code\<version>\claude.exe` interactively and log in once before
-  relying on it.
+- **Manual run:** double-click `pm-brain\run-brain.cmd` (or the "PM Brain" Desktop shortcut) —
+  it drives the bundled CLI headlessly, shows progress, and logs to `pm-brain\last-run.log`.
+  One-time setup first: the CLI's login is separate from the desktop app's, so run
+  `pm-brain\login-cli.cmd` once, type `/login`, finish the browser flow, then `/exit`.
 
 ## Security model
 
