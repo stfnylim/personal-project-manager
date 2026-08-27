@@ -48,7 +48,10 @@ node sync/sync.mjs --dry-run     # parse + validate only, print payload
 node sync/sync.mjs --config config.life.json    # a second instance (separate folder + sheet)
 ```
 
-Scheduling (once the webhook works): a Task Scheduler job runs the sync every 20 minutes —
+Scheduling (once the webhook works): a Task Scheduler job ("PM Sync") runs the sync every 5
+minutes, so a folder change written by a chat reaches the sheet within ~5 minutes; hit
+**Refresh** in the dashboard to pull it in immediately (it also auto-refreshes every 5 minutes).
+Run `node sync/sync.mjs` yourself for an instant push. Equivalent one-liner registration —
 
 ```
 schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.steph\src\project-manager\sync\sync.mjs\"" /SC MINUTE /MO 20 /F
