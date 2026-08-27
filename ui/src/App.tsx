@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Endpoint, PmData } from './api';
-import { clearEndpoint, fetchData, loadEndpoint, setProjectStatus } from './api';
+import type { EditableField, Endpoint, PmData } from './api';
+import { clearEndpoint, fetchData, loadEndpoint, setProjectField } from './api';
 import { Connect } from './views/Connect';
 import { Home } from './views/Home';
 import { Projects } from './views/Projects';
@@ -40,18 +40,18 @@ export function App() {
     return () => window.clearInterval(id);
   }, [refresh]);
 
-  const setStatus = useCallback(
-    async (projectId: string, status: string): Promise<boolean> => {
+  const setField = useCallback(
+    async (projectId: string, field: EditableField, value: string): Promise<boolean> => {
       if (!endpoint) return false;
       try {
-        await setProjectStatus(endpoint, projectId, status);
+        await setProjectField(endpoint, projectId, field, value);
         setData((d) =>
-          d ? { ...d, projects: d.projects.map((p) => (p.id === projectId ? { ...p, status } : p)) } : d,
+          d ? { ...d, projects: d.projects.map((p) => (p.id === projectId ? { ...p, [field]: value } : p)) } : d,
         );
         setError('');
         return true;
       } catch (err) {
-        setError(`Status change failed: ${(err as Error).message}`);
+        setError(`${field} change failed: ${(err as Error).message}`);
         return false;
       }
     },
@@ -105,9 +105,9 @@ export function App() {
         {!data && loading && <p className="meta">Loading…</p>}
         {data &&
           (route.startsWith('#/p/') ? (
-            <Detail data={data} id={decodeURIComponent(route.slice(4))} canWrite={canWrite} setStatus={setStatus} />
+            <Detail data={data} id={decodeURIComponent(route.slice(4))} canWrite={canWrite} setField={setField} />
           ) : route === '#/projects' ? (
-            <Projects data={data} canWrite={canWrite} setStatus={setStatus} />
+            <Projects data={data} canWrite={canWrite} setField={setField} />
           ) : (
             <Home data={data} />
           ))}

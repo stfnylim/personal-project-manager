@@ -1,16 +1,16 @@
-import type { PmData } from '../api';
-import { ProgressBar, StatusControl, UrgencyBadge } from '../components';
+import type { EditableField, PmData } from '../api';
+import { ProgressBar, StatusControl, UrgencyControl } from '../components';
 
 export function Detail({
   data,
   id,
   canWrite,
-  setStatus,
+  setField,
 }: {
   data: PmData;
   id: string;
   canWrite: boolean;
-  setStatus: (projectId: string, status: string) => Promise<boolean>;
+  setField: (projectId: string, field: EditableField, value: string) => Promise<boolean>;
 }) {
   const p = data.projects.find((x) => x.id === id);
   const entries = data.updates
@@ -37,8 +37,8 @@ export function Detail({
         <div className="card-head detail-head">
           <h2>{p.name}</h2>
           <span className="badges">
-            <StatusControl status={p.status} onChange={canWrite ? (s) => setStatus(p.id, s) : undefined} />
-            <UrgencyBadge urgency={p.urgency} />
+            <StatusControl status={p.status} onChange={canWrite ? (v) => setField(p.id, 'status', v) : undefined} />
+            <UrgencyControl urgency={p.urgency} onChange={canWrite ? (v) => setField(p.id, 'urgency', v) : undefined} />
             {p.horizon && <span className="chip chip-static">{p.horizon} term</span>}
           </span>
         </div>

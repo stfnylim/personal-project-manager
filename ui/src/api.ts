@@ -95,14 +95,21 @@ export async function fetchData(ep: Endpoint): Promise<PmData> {
   return data;
 }
 
-/** Queue a status change via the webhook. The sheet cell updates immediately;
+export type EditableField = 'status' | 'urgency';
+
+/** Queue a field change via the webhook. The sheet cell updates immediately;
  *  the sync applies it to project.md (+ log entry) on its next run. */
-export async function setProjectStatus(ep: Endpoint, projectId: string, status: string): Promise<void> {
+export async function setProjectField(
+  ep: Endpoint,
+  projectId: string,
+  field: EditableField,
+  value: string,
+): Promise<void> {
   if (!ep.writeSecret) throw new Error('this connection is read-only');
   const res = await fetch(ep.url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ secret: ep.writeSecret, action: 'setStatus', projectId, status }),
+    body: JSON.stringify({ secret: ep.writeSecret, action: 'setField', projectId, field, value }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as { ok: boolean; error?: string };

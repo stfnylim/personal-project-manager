@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
+const URGENCY_VALUES = ['high', 'medium', 'low'];
 
 // Status colors are reserved roles (dataviz status palette); every badge pairs
 // the color dot with a text label so meaning never rides on color alone.
@@ -34,33 +35,38 @@ export function UrgencyBadge({ urgency }: { urgency: string }) {
   return <Badge kind={URGENCY_KIND[urgency] ?? 'muted'}>{urgency || '—'}</Badge>;
 }
 
-/** Status as a dropdown when the connection can write, else a plain badge.
+/** A badge whose label is a native select — used for dashboard-editable fields.
  *  The select is controlled by the data, so a failed write snaps back on rerender. */
-export function StatusControl({
-  status,
+function BadgeSelect({
+  value,
+  values,
+  kindMap,
+  label,
   onChange,
 }: {
-  status: string;
-  onChange?: (status: string) => Promise<boolean>;
+  value: string;
+  values: string[];
+  kindMap: Record<string, string>;
+  label: string;
+  onChange: (value: string) => Promise<boolean>;
 }) {
   const [busy, setBusy] = useState(false);
-  if (!onChange) return <StatusBadge status={status} />;
-  const known = STATUS_VALUES.includes(status);
+  const known = values.includes(value);
   return (
-    <span className={`badge badge-${STATUS_KIND[status] ?? 'muted'}`}>
+    <span className={`badge badge-${kindMap[value] ?? 'muted'}`}>
       <span className="dot" aria-hidden />
       <select
         className="status-select"
-        aria-label="Project status"
-        value={known ? status : ''}
+        aria-label={label}
+        value={known ? value : ''}
         disabled={busy}
         onChange={(e) => {
           setBusy(true);
           void onChange(e.target.value).finally(() => setBusy(false));
         }}
       >
-        {!known && <option value="">{status || 'unknown'}</option>}
-        {STATUS_VALUES.map((s) => (
+        {!known && <option value="">{value || 'unknown'}</option>}
+        {values.map((s) => (
           <option key={s} value={s}>
             {s}
           </option>
@@ -68,6 +74,16 @@ export function StatusControl({
       </select>
     </span>
   );
+}
+
+export function StatusControl({ status, onChange }: { status: string; onChange?: (v: string) => Promise<boolean> }) {
+  if (!onChange) return <StatusBadge status={status} />;
+  return <BadgeSelect value={status} values={STATUS_VALUES} kindMap={STATUS_KIND} label="Project status" onChange={onChange} />;
+}
+
+export function UrgencyControl({ urgency, onChange }: { urgency: string; onChange?: (v: string) => Promise<boolean> }) {
+  if (!onChange) return <UrgencyBadge urgency={urgency} />;
+  return <BadgeSelect value={urgency} values={URGENCY_VALUES} kindMap={URGENCY_KIND} label="Project urgency" onChange={onChange} />;
 }
 
 export function ProgressBar({ progress }: { progress: string }) {

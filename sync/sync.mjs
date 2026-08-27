@@ -30,6 +30,7 @@ if (!existsSync(root)) fail(`projects dir not found: ${root}`);
 const STATUS = ['active', 'blocked', 'backlog', 'done'];
 const HORIZON = ['short', 'long'];
 const URGENCY = ['high', 'medium', 'low'];
+const EDITABLE_FIELDS = { status: STATUS, urgency: URGENCY }; // dashboard-editable
 
 // ---- apply pending dashboard changes to the markdown ---------------------
 // The dashboard queues edits (e.g. a status change) in the sheet's Pending tab.
@@ -50,7 +51,8 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
     const { id, project, field, value } = change;
     if (!id) continue;
     appliedIds.push(id); // acknowledged either way — a bad row must not poison the queue
-    if (field !== 'status' || !STATUS.includes(value)) {
+    const allowed = EDITABLE_FIELDS[field];
+    if (!allowed || !allowed.includes(value)) {
       console.error(`sync: skipping unsupported pending change ${field}=${value} for "${project}"`);
       continue;
     }
@@ -60,22 +62,23 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
       continue;
     }
     const text = readFileSync(file, 'utf8');
-    if ((parseFrontmatter(text).data?.status || '') === value) continue; // already applied
-    const updated = text.replace(/^(status:)[^\r\n]*/m, `$1 ${value}`);
+    if ((parseFrontmatter(text).data?.[field] || '') === value) continue; // already applied
+    const updated = text.replace(new RegExp(`^(${field}:)[^\\r\\n]*`, 'm'), `$1 ${value}`);
     if (updated === text) {
-      console.error(`sync: no status line found in ${project}/project.md — skipped`);
+      console.error(`sync: no ${field} line found in ${project}/project.md — skipped`);
       continue;
     }
     writeFileSync(file, updated);
     const stamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(change.requested || '') ? change.requested : formatDate(new Date());
-    appendFileSync(join(root, project, 'log.md'), `\n## ${stamp}\nStatus changed to ${value} from the dashboard.\n`);
-    console.log(`applied dashboard change: ${project} status -> ${value}`);
+    const label = field[0].toUpperCase() + field.slice(1);
+    appendFileSync(join(root, project, 'log.md'), `\n## ${stamp}\n${label} changed to ${value} from the dashboard.\n`);
+    console.log(`applied dashboard change: ${project} ${field} -> ${value}`);
     edited = true;
   }
   if (edited) {
     try {
       execSync(`git -C "${root}" add -A`, { stdio: 'ignore' });
-      execSync(`git -C "${root}" commit -m "dashboard: apply status changes"`, { stdio: 'ignore' });
+      execSync(`git -C "${root}" commit -m "dashboard: apply queued changes"`, { stdio: 'ignore' });
     } catch {
       console.error('sync: git commit of applied changes failed (continuing)');
     }

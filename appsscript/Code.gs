@@ -4,9 +4,10 @@
  * doPost (secret-protected):
  *   default            full-state sync from sync.mjs — rewrites the tabs, clears
  *                      acknowledged rows from the Pending tab (body.appliedIds)
- *   action:'setStatus' dashboard status change — updates the Projects tab cell
- *                      immediately and queues the change in the Pending tab; the
- *                      next sync run applies it to the markdown (source of truth)
+ *   action:'setField'  dashboard edit (status or urgency) — updates the Projects
+ *                      tab cell immediately and queues the change in the Pending
+ *                      tab; the next sync run applies it to the markdown
+ *                      (source of truth). 'setStatus' is a legacy alias.
  * doGet (token-protected): tabs as JSON for the dashboard + the pending queue.
  *
  * SETUP
@@ -26,6 +27,12 @@ const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress
 const UPDATE_HEADERS = ['Timestamp', 'Project', 'Entry'];
 const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
+const URGENCY_VALUES = ['high', 'medium', 'low'];
+// Editable fields: allowed values + their column in the Projects tab.
+const EDITABLE_FIELDS = {
+  status: { values: STATUS_VALUES, col: 3 },
+  urgency: { values: URGENCY_VALUES, col: 5 },
+};
 
 function doPost(e) {
   let body;
@@ -39,7 +46,12 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    if (body.action === 'setStatus') return handleSetStatus(body);
+    if (body.action === 'setStatus') {
+      body.action = 'setField';
+      body.field = 'status';
+      body.value = body.status;
+    }
+    if (body.action === 'setField') return handleSetField(body);
     if (body.action) return jsonOut({ ok: false, error: 'unknown action: ' + body.action });
     writeProjects(body.projects || []);
     const appended = appendUpdates(body.updates || []);
@@ -69,15 +81,20 @@ function doGet(e) {
   });
 }
 
-function handleSetStatus(body) {
+function handleSetField(body) {
   const project = String(body.projectId || '');
-  const status = String(body.status || '');
+  const field = String(body.field || '');
+  const value = String(body.value || '');
+  const spec = EDITABLE_FIELDS[field];
   if (!project) return jsonOut({ ok: false, error: 'missing projectId' });
-  if (STATUS_VALUES.indexOf(status) === -1) return jsonOut({ ok: false, error: 'bad status' });
+  if (!spec) return jsonOut({ ok: false, error: 'field not editable: ' + field });
+  if (spec.values.indexOf(value) === -1) return jsonOut({ ok: false, error: 'bad value for ' + field });
 
   const sheet = ensureSheet('Pending', PENDING_HEADERS);
   const id = Utilities.getUuid();
-  sheet.appendRow([id, nowString(), project, 'status', status]);
+  const range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, PENDING_HEADERS.length);
+  range.setNumberFormat('@'); // keep the Requested timestamp as text
+  range.setValues([[id, nowString(), project, field, value]]);
 
   // Reflect immediately in the Projects tab so every reader sees it before the next sync.
   const projects = ensureSheet('Projects', PROJECT_HEADERS);
@@ -86,7 +103,7 @@ function handleSetStatus(body) {
     const ids = projects.getRange(2, 1, last - 1, 1).getDisplayValues();
     for (let i = 0; i < ids.length; i++) {
       if (ids[i][0] === project) {
-        projects.getRange(i + 2, 3).setValue(status);
+        projects.getRange(i + 2, spec.col).setValue(value);
         break;
       }
     }

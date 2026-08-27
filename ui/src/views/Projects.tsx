@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { PmData, Project } from '../api';
-import { ProgressBar, StatusControl, UrgencyBadge } from '../components';
+import type { EditableField, PmData, Project } from '../api';
+import { ProgressBar, StatusControl, UrgencyControl } from '../components';
 
 const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -14,11 +14,11 @@ function pct(p: Project): number {
 export function Projects({
   data,
   canWrite,
-  setStatus,
+  setField,
 }: {
   data: PmData;
   canWrite: boolean;
-  setStatus: (projectId: string, status: string) => Promise<boolean>;
+  setField: (projectId: string, field: EditableField, value: string) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: 'last_update', dir: -1 });
@@ -103,11 +103,11 @@ export function Projects({
                   <div className="meta cell-summary">{p.summary}</div>
                 </td>
                 <td>
-                  <StatusControl status={p.status} onChange={canWrite ? (s) => setStatus(p.id, s) : undefined} />
+                  <StatusControl status={p.status} onChange={canWrite ? (v) => setField(p.id, 'status', v) : undefined} />
                 </td>
                 <td className="meta">{p.horizon}</td>
                 <td>
-                  <UrgencyBadge urgency={p.urgency} />
+                  <UrgencyControl urgency={p.urgency} onChange={canWrite ? (v) => setField(p.id, 'urgency', v) : undefined} />
                 </td>
                 <td>
                   <ProgressBar progress={p.progress} />
