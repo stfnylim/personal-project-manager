@@ -109,6 +109,16 @@ never in the repo or the built bundle. To hand it to a coworker, send a one-time
 `https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>` — the app
 stores the values, then scrubs them from the address bar.
 
+## Second instance / personal edition
+
+The system is multi-instance: each instance = its own projects folder + its own
+`config.<name>.json` (gitignored) + its own sheet/endpoint. `PERSONAL-SETUP.md` is a full
+runbook — written to be executed by the Claude on another machine — that stands up a personal
+"Life PM" from a clone of this repo, including templates (`templates/`), the dashboard build
+against a chosen config (`PM_CONFIG=config.life.json npm --prefix ui run build`), and an
+optional Notion embed of the hosted dashboard (`?src=…&token=…&stay=1` keeps the connection
+alive inside the iframe; private pages only).
+
 ## PM brain
 
 A scheduled agent (phase 4) that rewrites `BRIEF.md` in the projects folder — headline, "needs

@@ -68,7 +68,12 @@ export function loadEndpoint(): Endpoint | null {
     if (src && token) {
       const ep: Endpoint = { url: src, token };
       saveEndpoint(ep);
-      history.replaceState(null, '', window.location.pathname + window.location.hash);
+      // ?stay=1 keeps the credentials in the URL instead of scrubbing them —
+      // for iframe embeds (e.g. a Notion embed block) where localStorage may not
+      // survive between visits. Only use stay-links inside private pages.
+      if (!params.get('stay')) {
+        history.replaceState(null, '', window.location.pathname + window.location.hash);
+      }
       return ep;
     }
   } catch {

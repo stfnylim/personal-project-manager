@@ -5,10 +5,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Bake the endpoint into local builds: config.work.json sits at the repo root and
-// is gitignored, so CI/hosted builds never have it and fall back to the connect
-// screen — only builds made on this machine come out pre-connected.
-const configPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'config.work.json');
+// Bake the endpoint into local builds: the config sits at the repo root and is
+// gitignored, so CI/hosted builds never have it and fall back to the connect
+// screen — only builds made on a configured machine come out pre-connected.
+// Which config gets baked is selectable per instance:
+//   PM_CONFIG=config.life.json npm --prefix ui run build   (defaults to config.work.json)
+const configFile = process.env.PM_CONFIG ?? 'config.work.json';
+const configPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', configFile);
 let baked: { url: string; token: string; writeSecret?: string } | null = null;
 if (existsSync(configPath)) {
   try {
