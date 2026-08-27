@@ -70,6 +70,8 @@ Google Sheet [Projects | Updates | Summary]
 | `Projects` | ID, Name, Status, Horizon, Urgency, Progress, Summary, Last Update | fully rewritten each sync (idempotent) |
 | `Updates` | Timestamp, Project ID, Entry | append with dedupe on (project, timestamp) |
 | `Summary` | latest brief from `BRIEF.md` + generated-at | overwritten each sync |
+| `Tasks` | Project, Done, Task — every checklist item (v1.4) | fully rewritten each sync |
+| `Actions` | Project, Label, Type, Payload — from brain-maintained `ACTIONS.md` (v1.4) | fully rewritten each sync |
 
 Apps Script bound to the sheet:
 

@@ -263,6 +263,57 @@ button.ghost:hover {
   background: var(--muted);
 }
 
+/* Next actions & tasks */
+.action-group {
+  padding: 8px 0;
+  border-top: 1px solid var(--hairline);
+}
+.action-group:first-of-type {
+  border-top: 0;
+}
+.action-project {
+  font-size: 13px;
+  font-weight: 600;
+}
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.task-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--hairline);
+}
+.task-list li:first-child {
+  border-top: 0;
+}
+.task-box {
+  color: var(--muted);
+  flex: none;
+}
+.task-done .task-box {
+  color: var(--good);
+}
+.task-done .task-text {
+  color: var(--muted);
+}
+.task-text {
+  flex: 1;
+}
+.task-list li button,
+.next-cell button {
+  font-size: 12px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.repo-link {
+  font-size: 13px;
+  align-self: center;
+}
+
 /* Copy-prompt buttons */
 .prompt-row {
   display: flex;

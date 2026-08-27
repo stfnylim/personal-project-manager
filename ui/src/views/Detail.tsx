@@ -1,6 +1,6 @@
 import type { EditableField, PmData } from '../api';
-import { CopyButton, ProgressBar, StatusControl, UrgencyControl } from '../components';
-import { addProjectPrompt } from '../prompts';
+import { CopyButton, ProgressBar, RepoLink, StatusControl, UrgencyControl } from '../components';
+import { addProjectPrompt, taskPrompt } from '../prompts';
 
 export function Detail({
   data,
@@ -51,8 +51,30 @@ export function Detail({
         </p>
         <div className="prompt-row">
           <CopyButton label="copy chat prompt for this project" text={addProjectPrompt(p.id)} />
+          <RepoLink repo={p.repo} />
         </div>
       </section>
+      {(data.tasks ?? []).some((t) => t.project === id) && (
+        <section className="card">
+          <div className="card-head">
+            <h2>Tasks</h2>
+            <span className="meta">start copies a kickoff prompt for that task</span>
+          </div>
+          <ul className="task-list">
+            {(data.tasks ?? [])
+              .filter((t) => t.project === id)
+              .map((t, i) => (
+                <li key={i} className={t.done === 'done' ? 'task-done' : undefined}>
+                  <span className="task-box" aria-hidden>
+                    {t.done === 'done' ? '☑' : '☐'}
+                  </span>
+                  <span className="task-text">{t.task}</span>
+                  {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(id, t.task)} />}
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
       <section className="card">
         <div className="card-head">
           <h2>Log</h2>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { EditableField, PmData, Project } from '../api';
-import { ProgressBar, StatusControl, UrgencyControl } from '../components';
+import { CopyButton, ProgressBar, StatusControl, UrgencyControl } from '../components';
+import { taskPrompt } from '../prompts';
 
 const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -86,6 +87,7 @@ export function Projects({
               <th>
                 <button onClick={() => clickSort('last_update')}>Last update{arrow('last_update')}</button>
               </th>
+              <th>Next</th>
             </tr>
           </thead>
           <tbody>
@@ -113,11 +115,17 @@ export function Projects({
                   <ProgressBar progress={p.progress} />
                 </td>
                 <td className="meta mono">{p.last_update}</td>
+                <td className="next-cell">
+                  {(() => {
+                    const next = (data.tasks ?? []).find((t) => t.project === p.id && t.done !== 'done');
+                    return next ? <CopyButton label="⚡ start next" text={taskPrompt(p.id, next.task)} /> : null;
+                  })()}
+                </td>
               </tr>
             ))}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={6} className="meta">
+                <td colSpan={7} className="meta">
                   Nothing with status "{filter}".
                 </td>
               </tr>

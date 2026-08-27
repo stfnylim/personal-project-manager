@@ -8,12 +8,26 @@ export interface Project {
   summary: string;
   last_update: string;
   issues: string;
+  repo?: string;
 }
 
 export interface Update {
   timestamp: string;
   project: string;
   entry: string;
+}
+
+export interface TaskRow {
+  project: string;
+  done: string; // 'done' | 'open'
+  task: string;
+}
+
+export interface ActionRow {
+  project: string;
+  label: string;
+  type: string; // 'search' | 'url' | 'chat'
+  payload: string;
 }
 
 export interface Brief {
@@ -26,6 +40,9 @@ export interface PmData {
   error?: string;
   projects: Project[];
   updates: Update[];
+  tasks?: TaskRow[]; // absent until the Apps Script is redeployed with the Tasks tab
+  actions?: ActionRow[];
+  actionsGenerated?: string;
   brief: Brief | null;
   lastSync: string;
 }

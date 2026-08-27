@@ -15,6 +15,17 @@ export const NEW_PROJECT_PROMPT = `Project tracking: this chat is starting a new
 
 ${TAIL}`;
 
+/** Kickoff prompt for one specific task of one project (the ⚡ buttons). */
+export function taskPrompt(projectId: string, taskText: string): string {
+  return `Project tracking: continue work on the project "${projectId}" in my project manager.
+
+1. Read ${PROJECTS_DIR}\\PROTOCOL.md, then that project's project.md and log.md for context.
+2. The task to work on right now: ${taskText}
+3. Tell me your plan for this task before making changes.
+
+${TAIL}`;
+}
+
 export function addProjectPrompt(projectId?: string): string {
   const step2 = projectId
     ? `2. This chat's work belongs to the project "${projectId}". Read its project.md and log.md for context before doing anything else.`

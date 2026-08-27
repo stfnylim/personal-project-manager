@@ -1,7 +1,7 @@
 import type { PmData, Project } from '../api';
 import { daysSince } from '../api';
 import { Markdown } from '../markdown';
-import { CopyButton, StatTile, StatusBadge, UrgencyBadge } from '../components';
+import { ActionButton, CopyButton, StatTile, StatusBadge, UrgencyBadge } from '../components';
 import { NEW_PROJECT_PROMPT, addProjectPrompt } from '../prompts';
 
 function ProjectRow({ p, note }: { p: Project; note?: string }) {
@@ -44,6 +44,30 @@ export function Home({ data }: { data: PmData }) {
         <StatTile label="backlog" value={count('backlog')} kind="muted" />
         <StatTile label="done" value={count('done')} kind="good" />
       </div>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Next actions</h2>
+          {data.actionsGenerated && <span className="meta">curated {data.actionsGenerated}</span>}
+        </div>
+        {(data.actions ?? []).length === 0 && (
+          <p className="meta">Nothing curated yet — the PM brain adds actions on its next run.</p>
+        )}
+        {[...new Set((data.actions ?? []).map((a) => a.project))].map((proj) => (
+          <div className="action-group" key={proj}>
+            <a className="action-project" href={`#/p/${encodeURIComponent(proj)}`}>
+              {proj}
+            </a>
+            <div className="prompt-row">
+              {(data.actions ?? [])
+                .filter((a) => a.project === proj)
+                .map((a, i) => (
+                  <ActionButton key={i} action={a} />
+                ))}
+            </div>
+          </div>
+        ))}
+      </section>
 
       <section className="card">
         <div className="card-head">

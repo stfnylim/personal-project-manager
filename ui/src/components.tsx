@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import type { ActionRow } from './api';
+import { taskPrompt } from './prompts';
 
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
@@ -121,6 +123,34 @@ export function CopyButton({ label, text }: { label: string; text: string }) {
     <button className={done ? 'copied' : undefined} onClick={() => void copy()}>
       {done ? 'copied ✓' : label}
     </button>
+  );
+}
+
+/** One brain-curated action: search/url open a tab, chat copies a kickoff prompt. */
+export function ActionButton({ action }: { action: ActionRow }) {
+  if (action.type === 'chat') {
+    return <CopyButton label={action.label} text={taskPrompt(action.project, action.payload)} />;
+  }
+  const href =
+    action.type === 'search'
+      ? `https://www.google.com/search?q=${encodeURIComponent(action.payload)}`
+      : action.payload;
+  if (action.type === 'url' && !/^https:\/\//.test(href)) return null;
+  return (
+    <button title={action.type === 'search' ? `search: ${action.payload}` : href} onClick={() => window.open(href, '_blank', 'noopener')}>
+      {action.label} ↗
+    </button>
+  );
+}
+
+/** Opens the project's code folder in VS Code (vscode:// deep link). */
+export function RepoLink({ repo }: { repo?: string }) {
+  if (!repo) return null;
+  const href = `vscode://file/${repo.replace(/\\/g, '/')}`;
+  return (
+    <a className="repo-link" href={href} title={repo}>
+      open repo in VS Code
+    </a>
   );
 }
 

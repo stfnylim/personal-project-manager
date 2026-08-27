@@ -92,6 +92,7 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
 // ---- scan ----------------------------------------------------------------
 const projects = [];
 const updates = [];
+const taskRows = [];
 const dirs = readdirSync(root, { withFileTypes: true })
   .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !d.name.startsWith('_'))
   .map((d) => d.name)
@@ -119,8 +120,14 @@ for (const id of dirs) {
     checkEnum(meta, 'urgency', URGENCY, issues);
   }
 
-  const done = (body.match(/^\s*[-*] \[[xX]\]/gm) || []).length;
-  const open = (body.match(/^\s*[-*] \[ \]/gm) || []).length;
+  const taskItems = [];
+  for (const line of body.split(/\r?\n/)) {
+    const t = line.match(/^\s*[-*] \[([ xX])\]\s+(.*)$/);
+    if (t) taskItems.push({ done: t[1] !== ' ', text: t[2].trim() });
+  }
+  const done = taskItems.filter((t) => t.done).length;
+  const open = taskItems.length - done;
+  for (const t of taskItems) taskRows.push({ project: id, done: t.done, task: t.text });
 
   let entries = [];
   const logFile = join(dir, 'log.md');
@@ -146,6 +153,7 @@ for (const id of dirs) {
     progressDone: done,
     progressTotal: done + open,
     summary: meta.summary || '',
+    repo: meta.repo || '',
     lastUpdate,
     issues,
   });
@@ -158,14 +166,64 @@ if (existsSync(briefFile)) {
   brief = { generated: parsed.data?.generated || '', markdown: parsed.body.trim() };
 }
 
-const payload = { secret: config.secret, generatedAt: formatDate(new Date()), projects, updates, brief, appliedIds };
+// ---- next actions (ACTIONS.md, maintained by the PM brain) ---------------
+// Format per line: "- label | type | payload" under a "## <project-id>" heading.
+const ACTION_TYPES = ['search', 'url', 'chat'];
+let actions = null;
+const actionsFile = join(root, 'ACTIONS.md');
+if (existsSync(actionsFile)) {
+  const parsed = parseFrontmatter(readFileSync(actionsFile, 'utf8'));
+  const items = [];
+  let currentProject = '';
+  let badLines = 0;
+  for (const line of parsed.body.split(/\r?\n/)) {
+    const h = line.match(/^##\s+(.+?)\s*$/);
+    if (h) {
+      currentProject = h[1].trim();
+      continue;
+    }
+    const li = line.match(/^\s*-\s+(.*)$/);
+    if (!li) continue;
+    const parts = li[1].split('|').map((s) => s.trim());
+    if (parts.length < 3) {
+      badLines++;
+      continue;
+    }
+    const label = parts[0];
+    const type = parts[1];
+    const actionPayload = parts.slice(2).join(' | ');
+    const typeOk = ACTION_TYPES.includes(type);
+    const urlOk = type !== 'url' || /^https:\/\//.test(actionPayload);
+    if (!currentProject || !label || !typeOk || !urlOk) {
+      badLines++;
+      continue;
+    }
+    items.push({ project: currentProject, label, type, payload: actionPayload });
+  }
+  if (badLines) console.error(`sync: skipped ${badLines} malformed action line(s) in ACTIONS.md`);
+  actions = { generated: parsed.data?.generated || '', items };
+}
+
+const payload = {
+  secret: config.secret,
+  generatedAt: formatDate(new Date()),
+  projects,
+  updates,
+  tasks: taskRows,
+  actions,
+  brief,
+  appliedIds,
+};
 
 // ---- report --------------------------------------------------------------
 for (const p of projects) {
   const flag = p.issues.length ? `  !! ${p.issues.join('; ')}` : '';
   console.log(`${p.id}: ${p.status} ${p.progressDone}/${p.progressTotal} urgency=${p.urgency} last=${p.lastUpdate}${flag}`);
 }
-console.log(`${projects.length} project(s), ${updates.length} log entries, brief ${brief && brief.markdown ? 'present' : 'empty'}`);
+console.log(
+  `${projects.length} project(s), ${updates.length} log entries, ${taskRows.length} task(s), ` +
+    `${actions ? actions.items.length : 0} action(s), brief ${brief && brief.markdown ? 'present' : 'empty'}`,
+);
 
 if (DRY) {
   console.log('\n--dry-run: not posting. Payload:\n');

@@ -59,7 +59,12 @@ schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.s
 
 ## Dashboard
 
-React + TypeScript (Vite), zero runtime deps beyond React. The Overview page also has
+React + TypeScript (Vite), zero runtime deps beyond React. **Next actions** (Overview) renders
+the brain-curated `ACTIONS.md` as one-click buttons — `search`/`url` open a tab, `chat` copies a
+task kickoff prompt; the Projects table has a ⚡ column that copies a kickoff prompt for that
+project's next unchecked task, and each project page lists the full checklist with per-task
+start buttons plus an "open repo in VS Code" link when `repo:` is set in its frontmatter.
+The Overview page also has
 **copy new project prompt** / **copy add project prompt** buttons (and each project page a
 pre-filled variant) — paste into any Claude/Codex chat to hook that chat into the tracker; the
 prompt texts live in `ui/src/prompts.ts`. Views: **Overview** (the

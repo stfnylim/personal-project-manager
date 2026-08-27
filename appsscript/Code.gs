@@ -23,8 +23,10 @@
 const SECRET = 'REPLACE_WITH_secret_FROM_CONFIG';
 const READ_TOKEN = 'REPLACE_WITH_readToken_FROM_CONFIG';
 
-const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues'];
+const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues', 'Repo'];
 const UPDATE_HEADERS = ['Timestamp', 'Project', 'Entry'];
+const TASK_HEADERS = ['Project', 'Done', 'Task'];
+const ACTION_HEADERS = ['Project', 'Label', 'Type', 'Payload'];
 const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
@@ -55,7 +57,9 @@ function doPost(e) {
     if (body.action) return jsonOut({ ok: false, error: 'unknown action: ' + body.action });
     writeProjects(body.projects || []);
     const appended = appendUpdates(body.updates || []);
-    writeSummary(body.brief || null, body.generatedAt || '');
+    writeTasks(body.tasks || []);
+    writeActions(body.actions || null);
+    writeSummary(body.brief || null, body.generatedAt || '', body.actions ? body.actions.generated : '');
     if (body.appliedIds && body.appliedIds.length) clearPending(body.appliedIds);
     return jsonOut({ ok: true, projects: (body.projects || []).length, newUpdates: appended });
   } catch (err) {
@@ -73,11 +77,14 @@ function doGet(e) {
     ok: true,
     projects: readTab(ss, 'Projects'),
     updates: readTab(ss, 'Updates'),
+    tasks: readTab(ss, 'Tasks'),
+    actions: readTab(ss, 'Actions'),
     pending: readTab(ss, 'Pending'),
     brief: summary
-      ? { generated: summary.getRange('B1').getDisplayValue(), markdown: summary.getRange('A4').getDisplayValue() }
+      ? { generated: summary.getRange('B1').getDisplayValue(), markdown: summary.getRange('A5').getDisplayValue() }
       : null,
     lastSync: summary ? summary.getRange('B2').getDisplayValue() : '',
+    actionsGenerated: summary ? summary.getRange('B3').getDisplayValue() : '',
   });
 }
 
@@ -140,6 +147,7 @@ function writeProjects(projects) {
     p.summary,
     p.lastUpdate,
     (p.issues || []).join('; '),
+    p.repo || '',
   ]);
   const range = sheet.getRange(2, 1, rows.length, PROJECT_HEADERS.length);
   range.setNumberFormat('@'); // keep "2/9" and timestamps as text, not auto-dates
@@ -169,17 +177,42 @@ function updateKey(ts, projectId, entry) {
   return ts + '|' + projectId + '|' + String(entry).slice(0, 40);
 }
 
-function writeSummary(brief, generatedAt) {
+function writeSummary(brief, generatedAt, actionsGenerated) {
   const sheet = ensureSheet('Summary', null);
   sheet.clearContents();
   sheet.getRange('A1').setValue('Brief generated');
   sheet.getRange('B1').setNumberFormat('@').setValue(brief ? brief.generated : '');
   sheet.getRange('A2').setValue('Last sync');
   sheet.getRange('B2').setNumberFormat('@').setValue(generatedAt);
-  const md = sheet.getRange('A4');
+  sheet.getRange('A3').setValue('Actions generated');
+  sheet.getRange('B3').setNumberFormat('@').setValue(actionsGenerated || '');
+  const md = sheet.getRange('A5');
   md.setValue(brief ? brief.markdown : '');
   md.setWrap(true);
   sheet.setColumnWidth(1, 700);
+}
+
+function writeTasks(tasks) {
+  const sheet = ensureSheet('Tasks', TASK_HEADERS);
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, TASK_HEADERS.length).clearContent();
+  if (!tasks.length) return;
+  const rows = tasks.map((t) => [t.project, t.done ? 'done' : 'open', t.task]);
+  const range = sheet.getRange(2, 1, rows.length, TASK_HEADERS.length);
+  range.setNumberFormat('@');
+  range.setValues(rows);
+}
+
+function writeActions(actions) {
+  const sheet = ensureSheet('Actions', ACTION_HEADERS);
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, ACTION_HEADERS.length).clearContent();
+  const items = actions && actions.items ? actions.items : [];
+  if (!items.length) return;
+  const rows = items.map((a) => [a.project, a.label, a.type, a.payload]);
+  const range = sheet.getRange(2, 1, rows.length, ACTION_HEADERS.length);
+  range.setNumberFormat('@');
+  range.setValues(rows);
 }
 
 function ensureSheet(name, headers) {
