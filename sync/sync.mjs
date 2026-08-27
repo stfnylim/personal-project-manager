@@ -69,9 +69,13 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
       continue;
     }
     writeFileSync(file, updated);
-    const stamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(change.requested || '') ? change.requested : formatDate(new Date());
+    // Stamp with apply time, not request time: log.md is append-only, so an entry
+    // carrying an older timestamp would sort before entries already below it.
+    const stamp = formatDate(new Date());
+    const requested = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(change.requested || '') ? change.requested : '';
+    const when = requested && requested !== stamp ? ` (requested ${requested})` : '';
     const label = field[0].toUpperCase() + field.slice(1);
-    appendFileSync(join(root, project, 'log.md'), `\n## ${stamp}\n${label} changed to ${value} from the dashboard.\n`);
+    appendFileSync(join(root, project, 'log.md'), `\n## ${stamp}\n${label} changed to ${value} from the dashboard${when}.\n`);
     console.log(`applied dashboard change: ${project} ${field} -> ${value}`);
     edited = true;
   }

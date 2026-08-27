@@ -16,8 +16,12 @@ Steps:
    stuck, what matters most right now.>
 
    ## Needs attention
-   - <each blocked project and each active+high-urgency project: one line — why it matters and a
-     concrete suggested next action>
+   - <one line per qualifying project — why it matters and a concrete suggested next action.
+     A project qualifies ONLY if its status is `blocked`, or its status is `active` AND its
+     urgency is `high`. Read those two values from the frontmatter; do not infer them from the
+     prose. If NO project qualifies, write the single line "- Nothing blocked or high-urgency."
+     and nothing else in this section. Never write a "nothing qualifies" line alongside listed
+     projects — that contradicts itself.>
 
    ## Gone quiet
    - <each non-done project whose latest log entry is more than 7 days before today, with how
@@ -29,6 +33,9 @@ Steps:
 Style rules: write for Stephanie and her coworker, who did not see any chats — plain language, no
 jargon, no file paths. Keep the whole brief under 250 words. Never include secrets, credentials,
 or client-confidential details. Base every claim only on what the project files actually say.
+
+Write about the work, not about this brief: never include items like "confirm this brief reached
+the sheet" or commentary on the tracker's own automation.
 
 After BRIEF.md is written:
 
