@@ -166,16 +166,6 @@ export function TaskItem({
               ▶
             </button>
           )}
-          {t.done !== 'done' && (
-            <button title="mark done" onClick={() => void onTask('task_state', 'done')}>
-              ✓
-            </button>
-          )}
-          {t.done === 'done' && (
-            <button title="reopen" onClick={() => void onTask('task_state', 'open')}>
-              ↺
-            </button>
-          )}
           <button
             className="danger"
             title="delete this task"
