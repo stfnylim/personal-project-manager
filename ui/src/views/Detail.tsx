@@ -50,7 +50,7 @@ export function Detail({
           id: {p.id} · last update {p.last_update}
         </p>
         <div className="prompt-row">
-          <CopyButton label="copy chat prompt for this project" text={addProjectPrompt(p.id)} />
+          <CopyButton label="chat prompt for this project" text={addProjectPrompt(p.id)} />
           <RepoLink repo={p.repo} />
         </div>
       </section>

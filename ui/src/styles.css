@@ -154,6 +154,14 @@ button.ghost:hover {
   font-weight: 600;
   background: var(--wash);
 }
+.topbar-prompts {
+  display: flex;
+  gap: 8px;
+}
+.topbar-prompts button {
+  font-size: 12.5px;
+  padding: 4px 10px;
+}
 .topbar-right {
   margin-left: auto;
   display: flex;
@@ -261,6 +269,39 @@ button.ghost:hover {
 .badge-muted .dot,
 .dot-muted {
   background: var(--muted);
+}
+
+/* Overview: main column + tall right rail for todos */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 16px;
+  align-items: start;
+}
+.home-main {
+  min-width: 0;
+}
+.home-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 70px;
+  max-height: calc(100vh - 86px);
+  overflow-y: auto;
+}
+.home-rail .task-text {
+  font-size: 13px;
+}
+@media (max-width: 980px) {
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-rail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 /* Next actions & tasks */

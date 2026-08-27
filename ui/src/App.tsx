@@ -5,6 +5,8 @@ import { Connect } from './views/Connect';
 import { Home } from './views/Home';
 import { Projects } from './views/Projects';
 import { Detail } from './views/Detail';
+import { CopyButton } from './components';
+import { NEW_PROJECT_PROMPT, addProjectPrompt } from './prompts';
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -85,6 +87,10 @@ export function App() {
               Projects
             </a>
           </nav>
+          <div className="topbar-prompts">
+            <CopyButton label="new project prompt" text={NEW_PROJECT_PROMPT} />
+            <CopyButton label="add project prompt" text={addProjectPrompt()} />
+          </div>
           <div className="topbar-right">
             {data?.lastSync && <span className="meta">synced {data.lastSync}</span>}
             <button onClick={() => void refresh()} disabled={loading}>

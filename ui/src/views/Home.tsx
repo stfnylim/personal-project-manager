@@ -2,7 +2,7 @@ import type { PmData, Project } from '../api';
 import { daysSince } from '../api';
 import { Markdown } from '../markdown';
 import { ActionButton, CopyButton, StatTile, StatusBadge, UrgencyBadge } from '../components';
-import { NEW_PROJECT_PROMPT, addProjectPrompt } from '../prompts';
+import { taskPrompt } from '../prompts';
 
 function ProjectRow({ p, note }: { p: Project; note?: string }) {
   return (
@@ -28,8 +28,12 @@ export function Home({ data }: { data: PmData }) {
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1))
     .slice(0, 5);
 
+  const openTasks = (data.tasks ?? []).filter((t) => t.done !== 'done');
+  const projectsWithOpen = [...new Set(openTasks.map((t) => t.project))];
+
   return (
-    <div className="stack">
+    <div className="home-grid">
+    <div className="stack home-main">
       <section className="card">
         <div className="card-head">
           <h2>Summary</h2>
@@ -44,41 +48,6 @@ export function Home({ data }: { data: PmData }) {
         <StatTile label="backlog" value={count('backlog')} kind="muted" />
         <StatTile label="done" value={count('done')} kind="good" />
       </div>
-
-      <section className="card">
-        <div className="card-head">
-          <h2>Next actions</h2>
-          {data.actionsGenerated && <span className="meta">curated {data.actionsGenerated}</span>}
-        </div>
-        {(data.actions ?? []).length === 0 && (
-          <p className="meta">Nothing curated yet — the PM brain adds actions on its next run.</p>
-        )}
-        {[...new Set((data.actions ?? []).map((a) => a.project))].map((proj) => (
-          <div className="action-group" key={proj}>
-            <a className="action-project" href={`#/p/${encodeURIComponent(proj)}`}>
-              {proj}
-            </a>
-            <div className="prompt-row">
-              {(data.actions ?? [])
-                .filter((a) => a.project === proj)
-                .map((a, i) => (
-                  <ActionButton key={i} action={a} />
-                ))}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="card">
-        <div className="card-head">
-          <h2>Chat prompts</h2>
-          <span className="meta">paste into a Claude/Codex chat to hook it into this tracker</span>
-        </div>
-        <div className="prompt-row">
-          <CopyButton label="copy new project prompt" text={NEW_PROJECT_PROMPT} />
-          <CopyButton label="copy add project prompt" text={addProjectPrompt()} />
-        </div>
-      </section>
 
       {attention.length > 0 && (
         <section className="card">
@@ -140,6 +109,61 @@ export function Home({ data }: { data: PmData }) {
           ))}
         </ul>
       </section>
+    </div>
+
+    <aside className="home-rail">
+      <section className="card">
+        <div className="card-head">
+          <h2>Next actions</h2>
+          {data.actionsGenerated && <span className="meta">curated {data.actionsGenerated}</span>}
+        </div>
+        {(data.actions ?? []).length === 0 && (
+          <p className="meta">Nothing curated yet — the PM brain adds actions on its next run.</p>
+        )}
+        {[...new Set((data.actions ?? []).map((a) => a.project))].map((proj) => (
+          <div className="action-group" key={proj}>
+            <a className="action-project" href={`#/p/${encodeURIComponent(proj)}`}>
+              {proj}
+            </a>
+            <div className="prompt-row">
+              {(data.actions ?? [])
+                .filter((a) => a.project === proj)
+                .map((a, i) => (
+                  <ActionButton key={i} action={a} />
+                ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Open tasks</h2>
+          <span className="meta">{openTasks.length}</span>
+        </div>
+        {openTasks.length === 0 && <p className="meta">Nothing open.</p>}
+        {projectsWithOpen.map((proj) => (
+          <div className="action-group" key={proj}>
+            <a className="action-project" href={`#/p/${encodeURIComponent(proj)}`}>
+              {proj}
+            </a>
+            <ul className="task-list">
+              {openTasks
+                .filter((t) => t.project === proj)
+                .map((t, i) => (
+                  <li key={i}>
+                    <span className="task-box" aria-hidden>
+                      ☐
+                    </span>
+                    <span className="task-text">{t.task}</span>
+                    <CopyButton label="start" text={taskPrompt(t.project, t.task)} />
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ))}
+      </section>
+    </aside>
     </div>
   );
 }
