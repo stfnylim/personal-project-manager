@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "ui", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "pm-ui-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "ui", "run", "preview"],
+      "port": 4173
     }
   ]
 }

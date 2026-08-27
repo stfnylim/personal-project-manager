@@ -60,9 +60,24 @@ React + TypeScript (Vite), read-only, zero runtime deps beyond React. Views: **O
 Summary brief, stat tiles, needs-attention / gone-quiet / file-issue lists, latest activity),
 **Projects** (status filters + sortable table), and a per-project **log timeline**.
 
-Local dev: `npm --prefix ui run dev` → http://localhost:5173 (or the `pm-ui` launch config).
+### Using it locally (no hosting)
 
-First deploy to GitHub Pages:
+The build is one self-contained file: `ui\dist\index.html`. Double-click it — no server, no npm.
+The first time in a given browser, connect by pasting the pre-filled link this prints into the
+address bar:
+
+```
+powershell -c "$c = Get-Content 'O:\CGI\R_n_D\work.steph\src\project-manager\config.work.json' | ConvertFrom-Json; \"file:///O:/CGI/R_n_D/work.steph/src/project-manager/ui/dist/index.html?src=$([uri]::EscapeDataString($c.webhookUrl))&token=$($c.readToken)\""
+```
+
+Bookmark that link and it's one click from then on (the browser also remembers the connection in
+localStorage, so the plain file works too). After changing UI code, rebuild with
+`npm --prefix ui run build`. Local dev server: `npm --prefix ui run dev` → http://localhost:5173.
+
+### Optional: publish to GitHub Pages
+
+Only needed if someone else should use the dashboard (the coworker can just use the shared
+sheet). Setup:
 
 1. Create a GitHub repo and push this folder to `main` (the repo contains no secrets — config is
    gitignored; the dashboard never embeds the endpoint).
