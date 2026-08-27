@@ -1,5 +1,5 @@
-config.work.json
-config.life.json
+config.*.json
+!config.*.example.json
 sync/last-run.log
 pm-brain/last-run.log
 node_modules/
