@@ -35,9 +35,12 @@ export interface Endpoint {
   token: string;
 }
 
+/** Injected by vite.config.ts from config.work.json for local builds; null in hosted/CI builds. */
+declare const __PM_ENDPOINT__: Endpoint | null;
+
 const KEY = 'pm-endpoint';
 
-/** Endpoint from ?src=…&token=… (stored, then scrubbed from the URL) or localStorage. */
+/** Endpoint priority: ?src=…&token=… (stored, then scrubbed) → localStorage → baked-in. */
 export function loadEndpoint(): Endpoint | null {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -61,7 +64,7 @@ export function loadEndpoint(): Endpoint | null {
   } catch {
     /* storage unavailable */
   }
-  return null;
+  return typeof __PM_ENDPOINT__ === 'undefined' ? null : __PM_ENDPOINT__;
 }
 
 export function saveEndpoint(ep: Endpoint): void {

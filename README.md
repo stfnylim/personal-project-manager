@@ -62,17 +62,17 @@ Summary brief, stat tiles, needs-attention / gone-quiet / file-issue lists, late
 
 ### Using it locally (no hosting)
 
-The build is one self-contained file: `ui\dist\index.html`. Double-click it — no server, no npm.
-The first time in a given browser, connect by pasting the pre-filled link this prints into the
-address bar:
+The build is one self-contained, pre-connected file: `ui\dist\index.html`. Double-click it (or
+bookmark the file URL) — no server, no npm, no connect screen. Builds made on this machine bake
+the endpoint URL + read token in from `config.work.json` (both `dist/` and the config are
+gitignored, so neither ever reaches git). Because of that, **treat the built file like the
+config**: don't send `index.html` itself to anyone you wouldn't hand the read token.
 
-```
-powershell -c "$c = Get-Content 'O:\CGI\R_n_D\work.steph\src\project-manager\config.work.json' | ConvertFrom-Json; \"file:///O:/CGI/R_n_D/work.steph/src/project-manager/ui/dist/index.html?src=$([uri]::EscapeDataString($c.webhookUrl))&token=$($c.readToken)\""
-```
+Rebuild after UI changes or a token rotation: `npm --prefix ui run build`.
+Dev server: `npm --prefix ui run dev` → http://localhost:5173 (also auto-connects).
 
-Bookmark that link and it's one click from then on (the browser also remembers the connection in
-localStorage, so the plain file works too). After changing UI code, rebuild with
-`npm --prefix ui run build`. Local dev server: `npm --prefix ui run dev` → http://localhost:5173.
+Builds made where `config.work.json` doesn't exist (e.g. GitHub Actions) bake nothing and show
+the connect screen; the `?src=…&token=…` link flow below covers that case.
 
 ### Optional: publish to GitHub Pages
 
