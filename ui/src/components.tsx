@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ActionRow } from './api';
+import type { ActionRow, TaskOp, TaskRow } from './api';
 import { taskPrompt } from './prompts';
 
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
@@ -140,6 +140,55 @@ export function ActionButton({ action }: { action: ActionRow }) {
     <button title={action.type === 'search' ? `search: ${action.payload}` : href} onClick={() => window.open(href, '_blank', 'noopener')}>
       {action.label} ↗
     </button>
+  );
+}
+
+/** One task row: tri-state glyph, text, state/delete controls (write builds only), start button. */
+export function TaskItem({
+  t,
+  onTask,
+}: {
+  t: TaskRow;
+  onTask?: (op: TaskOp, state?: string) => Promise<boolean>;
+}) {
+  const cls = t.done === 'done' ? 'task-done' : t.done === 'wip' ? 'task-wip' : undefined;
+  const glyph = t.done === 'done' ? '☑' : t.done === 'wip' ? '◐' : '☐';
+  return (
+    <li className={cls}>
+      <span className="task-box" aria-hidden>
+        {glyph}
+      </span>
+      <span className="task-text">{t.task}</span>
+      {onTask && (
+        <span className="task-ctl">
+          {t.done === 'open' && (
+            <button title="mark in progress" onClick={() => void onTask('task_state', 'wip')}>
+              ▶
+            </button>
+          )}
+          {t.done !== 'done' && (
+            <button title="mark done" onClick={() => void onTask('task_state', 'done')}>
+              ✓
+            </button>
+          )}
+          {t.done === 'done' && (
+            <button title="reopen" onClick={() => void onTask('task_state', 'open')}>
+              ↺
+            </button>
+          )}
+          <button
+            className="danger"
+            title="delete this task"
+            onClick={() => {
+              if (window.confirm(`Delete task: "${t.task}"?`)) void onTask('task_delete');
+            }}
+          >
+            ✕
+          </button>
+        </span>
+      )}
+      {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(t.project, t.task)} />}
+    </li>
   );
 }
 

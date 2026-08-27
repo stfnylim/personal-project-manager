@@ -30,6 +30,7 @@ const ACTION_HEADERS = ['Project', 'Label', 'Type', 'Payload'];
 const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
+const TASK_STATES = ['open', 'wip', 'done'];
 // Editable fields: allowed values + their column in the Projects tab.
 const EDITABLE_FIELDS = {
   status: { values: STATUS_VALUES, col: 3 },
@@ -92,8 +93,9 @@ function handleSetField(body) {
   const project = String(body.projectId || '');
   const field = String(body.field || '');
   const value = String(body.value || '');
-  const spec = EDITABLE_FIELDS[field];
   if (!project) return jsonOut({ ok: false, error: 'missing projectId' });
+  if (field === 'task_state' || field === 'task_delete') return handleTaskChange(project, field, value);
+  const spec = EDITABLE_FIELDS[field];
   if (!spec) return jsonOut({ ok: false, error: 'field not editable: ' + field });
   if (spec.values.indexOf(value) === -1) return jsonOut({ ok: false, error: 'bad value for ' + field });
 
@@ -111,6 +113,42 @@ function handleSetField(body) {
     for (let i = 0; i < ids.length; i++) {
       if (ids[i][0] === project) {
         projects.getRange(i + 2, spec.col).setValue(value);
+        break;
+      }
+    }
+  }
+  return jsonOut({ ok: true, id: id });
+}
+
+/** Queue a task edit (state change or delete) and reflect it in the Tasks tab immediately.
+ *  The sync applies it to project.md, keeping markdown the source of truth. */
+function handleTaskChange(project, field, value) {
+  let payload;
+  try {
+    payload = JSON.parse(value);
+  } catch (err) {
+    return jsonOut({ ok: false, error: 'bad task payload' });
+  }
+  const text = String(payload.text || '').trim();
+  if (!text) return jsonOut({ ok: false, error: 'missing task text' });
+  if (field === 'task_state' && TASK_STATES.indexOf(String(payload.state)) === -1) {
+    return jsonOut({ ok: false, error: 'bad task state' });
+  }
+
+  const sheet = ensureSheet('Pending', PENDING_HEADERS);
+  const id = Utilities.getUuid();
+  const range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, PENDING_HEADERS.length);
+  range.setNumberFormat('@');
+  range.setValues([[id, nowString(), project, field, value]]);
+
+  const tasks = ensureSheet('Tasks', TASK_HEADERS);
+  const last = tasks.getLastRow();
+  if (last > 1) {
+    const rows = tasks.getRange(2, 1, last - 1, TASK_HEADERS.length).getDisplayValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === project && rows[i][2] === text) {
+        if (field === 'task_delete') tasks.deleteRow(i + 2);
+        else tasks.getRange(i + 2, 2).setValue(String(payload.state));
         break;
       }
     }
@@ -197,7 +235,7 @@ function writeTasks(tasks) {
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, TASK_HEADERS.length).clearContent();
   if (!tasks.length) return;
-  const rows = tasks.map((t) => [t.project, t.done ? 'done' : 'open', t.task]);
+  const rows = tasks.map((t) => [t.project, t.state || (t.done ? 'done' : 'open'), t.task]);
   const range = sheet.getRange(2, 1, rows.length, TASK_HEADERS.length);
   range.setNumberFormat('@');
   range.setValues(rows);

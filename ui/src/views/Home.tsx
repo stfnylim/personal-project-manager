@@ -1,8 +1,7 @@
-import type { PmData, Project } from '../api';
+import type { PmData, Project, TaskOp } from '../api';
 import { daysSince } from '../api';
 import { Markdown } from '../markdown';
-import { ActionButton, CopyButton, StatTile, StatusBadge, UrgencyBadge } from '../components';
-import { taskPrompt } from '../prompts';
+import { ActionButton, StatTile, StatusBadge, TaskItem, UrgencyBadge } from '../components';
 
 function ProjectRow({ p, note }: { p: Project; note?: string }) {
   return (
@@ -15,7 +14,15 @@ function ProjectRow({ p, note }: { p: Project; note?: string }) {
   );
 }
 
-export function Home({ data }: { data: PmData }) {
+export function Home({
+  data,
+  canWrite,
+  taskChange,
+}: {
+  data: PmData;
+  canWrite: boolean;
+  taskChange: (projectId: string, text: string, op: TaskOp, state?: string) => Promise<boolean>;
+}) {
   const count = (s: string) => data.projects.filter((p) => p.status === s).length;
   const attention = data.projects.filter(
     (p) => p.status === 'blocked' || (p.status === 'active' && p.urgency === 'high'),
@@ -151,13 +158,11 @@ export function Home({ data }: { data: PmData }) {
               {openTasks
                 .filter((t) => t.project === proj)
                 .map((t, i) => (
-                  <li key={i}>
-                    <span className="task-box" aria-hidden>
-                      ☐
-                    </span>
-                    <span className="task-text">{t.task}</span>
-                    <CopyButton label="start" text={taskPrompt(t.project, t.task)} />
-                  </li>
+                  <TaskItem
+                    key={i}
+                    t={t}
+                    onTask={canWrite ? (op, state) => taskChange(t.project, t.task, op, state) : undefined}
+                  />
                 ))}
             </ul>
           </div>

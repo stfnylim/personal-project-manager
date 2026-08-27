@@ -19,7 +19,7 @@ export interface Update {
 
 export interface TaskRow {
   project: string;
-  done: string; // 'done' | 'open'
+  done: string; // 'done' | 'wip' | 'open'
   task: string;
 }
 
@@ -132,6 +132,29 @@ export async function setProjectField(
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ secret: ep.writeSecret, action: 'setField', projectId, field, value }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { ok: boolean; error?: string };
+  if (!data.ok) throw new Error(data.error || 'write failed');
+}
+
+export type TaskOp = 'task_state' | 'task_delete';
+
+/** Queue a task edit (re-state or delete). The sheet's Tasks tab updates immediately;
+ *  the sync applies it to project.md on its next run. Tasks are matched by exact text. */
+export async function sendTaskChange(
+  ep: Endpoint,
+  projectId: string,
+  op: TaskOp,
+  text: string,
+  state?: string,
+): Promise<void> {
+  if (!ep.writeSecret) throw new Error('this connection is read-only');
+  const value = JSON.stringify(state ? { text, state } : { text });
+  const res = await fetch(ep.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ secret: ep.writeSecret, action: 'setField', projectId, field: op, value }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as { ok: boolean; error?: string };

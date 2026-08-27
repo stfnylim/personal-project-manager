@@ -1,17 +1,19 @@
-import type { EditableField, PmData } from '../api';
-import { CopyButton, ProgressBar, RepoLink, StatusControl, UrgencyControl } from '../components';
-import { addProjectPrompt, taskPrompt } from '../prompts';
+import type { EditableField, PmData, TaskOp } from '../api';
+import { CopyButton, ProgressBar, RepoLink, StatusControl, TaskItem, UrgencyControl } from '../components';
+import { addProjectPrompt } from '../prompts';
 
 export function Detail({
   data,
   id,
   canWrite,
   setField,
+  taskChange,
 }: {
   data: PmData;
   id: string;
   canWrite: boolean;
   setField: (projectId: string, field: EditableField, value: string) => Promise<boolean>;
+  taskChange: (projectId: string, text: string, op: TaskOp, state?: string) => Promise<boolean>;
 }) {
   const p = data.projects.find((x) => x.id === id);
   const entries = data.updates
@@ -64,13 +66,11 @@ export function Detail({
             {(data.tasks ?? [])
               .filter((t) => t.project === id)
               .map((t, i) => (
-                <li key={i} className={t.done === 'done' ? 'task-done' : undefined}>
-                  <span className="task-box" aria-hidden>
-                    {t.done === 'done' ? '☑' : '☐'}
-                  </span>
-                  <span className="task-text">{t.task}</span>
-                  {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(id, t.task)} />}
-                </li>
+                <TaskItem
+                  key={i}
+                  t={t}
+                  onTask={canWrite ? (op, state) => taskChange(id, t.task, op, state) : undefined}
+                />
               ))}
           </ul>
         </section>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { EditableField, Endpoint, PmData } from './api';
-import { clearEndpoint, fetchData, loadEndpoint, setProjectField } from './api';
+import type { EditableField, Endpoint, PmData, TaskOp } from './api';
+import { clearEndpoint, fetchData, loadEndpoint, sendTaskChange, setProjectField } from './api';
 import { Connect } from './views/Connect';
 import { Home } from './views/Home';
 import { Projects } from './views/Projects';
@@ -60,6 +60,29 @@ export function App() {
     [endpoint],
   );
 
+  const taskChange = useCallback(
+    async (projectId: string, text: string, op: TaskOp, state?: string): Promise<boolean> => {
+      if (!endpoint) return false;
+      try {
+        await sendTaskChange(endpoint, projectId, op, text, state);
+        setData((d) => {
+          if (!d) return d;
+          const tasks = (d.tasks ?? []).flatMap((t) => {
+            if (t.project !== projectId || t.task !== text) return [t];
+            return op === 'task_delete' ? [] : [{ ...t, done: state ?? t.done }];
+          });
+          return { ...d, tasks };
+        });
+        setError('');
+        return true;
+      } catch (err) {
+        setError(`task change failed: ${(err as Error).message}`);
+        return false;
+      }
+    },
+    [endpoint],
+  );
+
   if (!endpoint) return <Connect onConnect={setEndpoint} />;
 
   const canWrite = Boolean(endpoint.writeSecret);
@@ -111,11 +134,17 @@ export function App() {
         {!data && loading && <p className="meta">Loading…</p>}
         {data &&
           (route.startsWith('#/p/') ? (
-            <Detail data={data} id={decodeURIComponent(route.slice(4))} canWrite={canWrite} setField={setField} />
+            <Detail
+              data={data}
+              id={decodeURIComponent(route.slice(4))}
+              canWrite={canWrite}
+              setField={setField}
+              taskChange={taskChange}
+            />
           ) : route === '#/projects' ? (
             <Projects data={data} canWrite={canWrite} setField={setField} />
           ) : (
-            <Home data={data} />
+            <Home data={data} canWrite={canWrite} taskChange={taskChange} />
           ))}
       </main>
     </div>

@@ -51,6 +51,43 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
     const { id, project, field, value } = change;
     if (!id) continue;
     appliedIds.push(id); // acknowledged either way — a bad row must not poison the queue
+    if (field === 'task_state' || field === 'task_delete') {
+      let tp;
+      try {
+        tp = JSON.parse(value);
+      } catch {
+        console.error(`sync: bad task payload for "${project}" — skipped`);
+        continue;
+      }
+      const file = join(root, project, 'project.md');
+      if (!existsSync(file)) {
+        console.error(`sync: task change for unknown project "${project}" — skipped`);
+        continue;
+      }
+      const wanted = String(tp.text || '').trim();
+      const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+      const hit = lines.findIndex((l) => {
+        const m = l.match(/^\s*[-*] \[[ xX~]\]\s+(.*)$/);
+        return m && m[1].trim() === wanted;
+      });
+      if (hit === -1) {
+        console.error(`sync: task "${wanted}" not found in ${project}/project.md — skipped`);
+        continue;
+      }
+      if (field === 'task_delete') {
+        lines.splice(hit, 1);
+        console.log(`applied dashboard change: ${project} deleted task "${wanted}"`);
+      } else {
+        const mark = tp.state === 'done' ? 'x' : tp.state === 'wip' ? '~' : ' ';
+        const updatedLine = lines[hit].replace(/\[[ xX~]\]/, `[${mark}]`);
+        if (updatedLine === lines[hit]) continue; // already in that state
+        lines[hit] = updatedLine;
+        console.log(`applied dashboard change: ${project} task "${wanted}" -> ${tp.state}`);
+      }
+      writeFileSync(file, lines.join('\n'));
+      edited = true;
+      continue;
+    }
     const allowed = EDITABLE_FIELDS[field];
     if (!allowed || !allowed.includes(value)) {
       console.error(`sync: skipping unsupported pending change ${field}=${value} for "${project}"`);
@@ -122,12 +159,16 @@ for (const id of dirs) {
 
   const taskItems = [];
   for (const line of body.split(/\r?\n/)) {
-    const t = line.match(/^\s*[-*] \[([ xX])\]\s+(.*)$/);
-    if (t) taskItems.push({ done: t[1] !== ' ', text: t[2].trim() });
+    const t = line.match(/^\s*[-*] \[([ xX~])\]\s+(.*)$/);
+    if (t) {
+      const state = t[1] === ' ' ? 'open' : t[1] === '~' ? 'wip' : 'done';
+      taskItems.push({ state, text: t[2].trim() });
+    }
   }
-  const done = taskItems.filter((t) => t.done).length;
+  const done = taskItems.filter((t) => t.state === 'done').length;
   const open = taskItems.length - done;
-  for (const t of taskItems) taskRows.push({ project: id, done: t.done, task: t.text });
+  // done (bool) keeps pre-tri-state Apps Script versions rendering correctly; state is canonical
+  for (const t of taskItems) taskRows.push({ project: id, done: t.state === 'done', state: t.state, task: t.text });
 
   let entries = [];
   const logFile = join(dir, 'log.md');

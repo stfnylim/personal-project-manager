@@ -117,7 +117,8 @@ export function Projects({
                 <td className="meta mono">{p.last_update}</td>
                 <td className="next-cell">
                   {(() => {
-                    const next = (data.tasks ?? []).find((t) => t.project === p.id && t.done !== 'done');
+                    const open = (data.tasks ?? []).filter((t) => t.project === p.id && t.done !== 'done');
+                    const next = open.find((t) => t.done === 'wip') ?? open[0]; // prefer in-progress
                     return next ? <CopyButton label="⚡ start next" text={taskPrompt(p.id, next.task)} /> : null;
                   })()}
                 </td>
