@@ -8,9 +8,10 @@
  *   node sync/sync.mjs --dry-run             parse + validate + print payload, no POST
  *   node sync/sync.mjs --config <path>       use another config (e.g. config.life.json)
  */
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry-run');
@@ -29,6 +30,57 @@ if (!existsSync(root)) fail(`projects dir not found: ${root}`);
 const STATUS = ['active', 'blocked', 'backlog', 'done'];
 const HORIZON = ['short', 'long'];
 const URGENCY = ['high', 'medium', 'low'];
+
+// ---- apply pending dashboard changes to the markdown ---------------------
+// The dashboard queues edits (e.g. a status change) in the sheet's Pending tab.
+// The markdown stays the source of truth: we apply each change to project.md,
+// log it, commit, and acknowledge with appliedIds so the queue row is cleared.
+const appliedIds = [];
+if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
+  let pendingList = [];
+  try {
+    const res = await fetch(`${config.webhookUrl}?token=${encodeURIComponent(config.readToken)}`);
+    const remote = await res.json();
+    if (remote.ok && Array.isArray(remote.pending)) pendingList = remote.pending;
+  } catch {
+    console.error('sync: could not fetch pending changes (continuing without)');
+  }
+  let edited = false;
+  for (const change of pendingList) {
+    const { id, project, field, value } = change;
+    if (!id) continue;
+    appliedIds.push(id); // acknowledged either way — a bad row must not poison the queue
+    if (field !== 'status' || !STATUS.includes(value)) {
+      console.error(`sync: skipping unsupported pending change ${field}=${value} for "${project}"`);
+      continue;
+    }
+    const file = join(root, project, 'project.md');
+    if (!existsSync(file)) {
+      console.error(`sync: pending change for unknown project "${project}" — skipped`);
+      continue;
+    }
+    const text = readFileSync(file, 'utf8');
+    if ((parseFrontmatter(text).data?.status || '') === value) continue; // already applied
+    const updated = text.replace(/^(status:)[^\r\n]*/m, `$1 ${value}`);
+    if (updated === text) {
+      console.error(`sync: no status line found in ${project}/project.md — skipped`);
+      continue;
+    }
+    writeFileSync(file, updated);
+    const stamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(change.requested || '') ? change.requested : formatDate(new Date());
+    appendFileSync(join(root, project, 'log.md'), `\n## ${stamp}\nStatus changed to ${value} from the dashboard.\n`);
+    console.log(`applied dashboard change: ${project} status -> ${value}`);
+    edited = true;
+  }
+  if (edited) {
+    try {
+      execSync(`git -C "${root}" add -A`, { stdio: 'ignore' });
+      execSync(`git -C "${root}" commit -m "dashboard: apply status changes"`, { stdio: 'ignore' });
+    } catch {
+      console.error('sync: git commit of applied changes failed (continuing)');
+    }
+  }
+}
 
 // ---- scan ----------------------------------------------------------------
 const projects = [];
@@ -99,7 +151,7 @@ if (existsSync(briefFile)) {
   brief = { generated: parsed.data?.generated || '', markdown: parsed.body.trim() };
 }
 
-const payload = { secret: config.secret, generatedAt: formatDate(new Date()), projects, updates, brief };
+const payload = { secret: config.secret, generatedAt: formatDate(new Date()), projects, updates, brief, appliedIds };
 
 // ---- report --------------------------------------------------------------
 for (const p of projects) {
@@ -133,7 +185,8 @@ try {
     fail(`webhook returned non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`);
   }
   if (!result.ok) fail(`webhook error: ${result.error}`);
-  console.log(`synced OK: ${result.projects} project(s) written, ${result.newUpdates} new update(s) appended`);
+  const ack = appliedIds.length ? `, ${appliedIds.length} pending change(s) cleared` : '';
+  console.log(`synced OK: ${result.projects} project(s) written, ${result.newUpdates} new update(s) appended${ack}`);
 } catch (err) {
   fail(String(err));
 }

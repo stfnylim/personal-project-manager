@@ -1,7 +1,17 @@
 import type { PmData } from '../api';
-import { ProgressBar, StatusBadge, UrgencyBadge } from '../components';
+import { ProgressBar, StatusControl, UrgencyBadge } from '../components';
 
-export function Detail({ data, id }: { data: PmData; id: string }) {
+export function Detail({
+  data,
+  id,
+  canWrite,
+  setStatus,
+}: {
+  data: PmData;
+  id: string;
+  canWrite: boolean;
+  setStatus: (projectId: string, status: string) => Promise<boolean>;
+}) {
   const p = data.projects.find((x) => x.id === id);
   const entries = data.updates
     .filter((u) => u.project === id)
@@ -27,7 +37,7 @@ export function Detail({ data, id }: { data: PmData; id: string }) {
         <div className="card-head detail-head">
           <h2>{p.name}</h2>
           <span className="badges">
-            <StatusBadge status={p.status} />
+            <StatusControl status={p.status} onChange={canWrite ? (s) => setStatus(p.id, s) : undefined} />
             <UrgencyBadge urgency={p.urgency} />
             {p.horizon && <span className="chip chip-static">{p.horizon} term</span>}
           </span>

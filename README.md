@@ -56,7 +56,7 @@ schtasks /Create /TN "PM Sync" /TR "\"<path-to-node.exe>\" \"O:\CGI\R_n_D\work.s
 
 ## Dashboard
 
-React + TypeScript (Vite), read-only, zero runtime deps beyond React. Views: **Overview** (the
+React + TypeScript (Vite), zero runtime deps beyond React. Views: **Overview** (the
 Summary brief, stat tiles, needs-attention / gone-quiet / file-issue lists, latest activity),
 **Projects** (status filters + sortable table), and a per-project **log timeline**.
 
@@ -73,6 +73,15 @@ Dev server: `npm --prefix ui run dev` → http://localhost:5173 (also auto-conne
 
 Builds made where `config.work.json` doesn't exist (e.g. GitHub Actions) bake nothing and show
 the connect screen; the `?src=…&token=…` link flow below covers that case.
+
+### Editing from the dashboard
+
+Local builds (which carry the write secret from `config.work.json`) render each project's
+**status as a dropdown**. Changing it does two things: the sheet's Projects tab updates
+immediately, and the change is queued in a `Pending` tab. On its next run the sync applies the
+change to that project's `project.md`, appends a log entry ("Status changed to X from the
+dashboard"), commits, and clears the queue — so the markdown stays the source of truth. Builds
+without the baked config (hosted/CI) show a plain read-only badge.
 
 ### Optional: publish to GitHub Pages
 
@@ -95,4 +104,6 @@ stores the values, then scrubs them from the address bar.
   in the gitignored config and inside the Apps Script deployment.
 - The endpoint is "anyone with URL + token" — obscurity-grade by design. The data folder's
   PROTOCOL.md therefore bans secrets and client-confidential details in project files.
-- The sheet is never a source: hand-edits to synced cells get overwritten on the next sync.
+- The sheet is never a source: hand-edits to synced cells get overwritten on the next sync. The
+  one deliberate exception is the `Pending` tab — the queue dashboard edits travel through on
+  their way into the markdown.

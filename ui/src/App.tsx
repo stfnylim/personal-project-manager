@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Endpoint, PmData } from './api';
-import { clearEndpoint, fetchData, loadEndpoint } from './api';
+import { clearEndpoint, fetchData, loadEndpoint, setProjectStatus } from './api';
 import { Connect } from './views/Connect';
 import { Home } from './views/Home';
 import { Projects } from './views/Projects';
@@ -40,7 +40,27 @@ export function App() {
     return () => window.clearInterval(id);
   }, [refresh]);
 
+  const setStatus = useCallback(
+    async (projectId: string, status: string): Promise<boolean> => {
+      if (!endpoint) return false;
+      try {
+        await setProjectStatus(endpoint, projectId, status);
+        setData((d) =>
+          d ? { ...d, projects: d.projects.map((p) => (p.id === projectId ? { ...p, status } : p)) } : d,
+        );
+        setError('');
+        return true;
+      } catch (err) {
+        setError(`Status change failed: ${(err as Error).message}`);
+        return false;
+      }
+    },
+    [endpoint],
+  );
+
   if (!endpoint) return <Connect onConnect={setEndpoint} />;
+
+  const canWrite = Boolean(endpoint.writeSecret);
 
   const disconnect = () => {
     clearEndpoint();
@@ -85,9 +105,9 @@ export function App() {
         {!data && loading && <p className="meta">Loading…</p>}
         {data &&
           (route.startsWith('#/p/') ? (
-            <Detail data={data} id={decodeURIComponent(route.slice(4))} />
+            <Detail data={data} id={decodeURIComponent(route.slice(4))} canWrite={canWrite} setStatus={setStatus} />
           ) : route === '#/projects' ? (
-            <Projects data={data} />
+            <Projects data={data} canWrite={canWrite} setStatus={setStatus} />
           ) : (
             <Home data={data} />
           ))}

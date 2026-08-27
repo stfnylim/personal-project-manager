@@ -33,6 +33,8 @@ export interface PmData {
 export interface Endpoint {
   url: string;
   token: string;
+  /** Present only in local builds (baked from config.work.json) — enables edits. */
+  writeSecret?: string;
 }
 
 /** Injected by vite.config.ts from config.work.json for local builds; null in hosted/CI builds. */
@@ -40,7 +42,7 @@ declare const __PM_ENDPOINT__: Endpoint | null;
 
 const KEY = 'pm-endpoint';
 
-/** Endpoint priority: ?src=…&token=… (stored, then scrubbed) → localStorage → baked-in. */
+/** Endpoint priority: ?src=…&token=… (stored, then scrubbed) → baked-in → localStorage. */
 export function loadEndpoint(): Endpoint | null {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -55,6 +57,8 @@ export function loadEndpoint(): Endpoint | null {
   } catch {
     /* ignore */
   }
+  const baked = typeof __PM_ENDPOINT__ === 'undefined' ? null : __PM_ENDPOINT__;
+  if (baked) return baked;
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -64,7 +68,7 @@ export function loadEndpoint(): Endpoint | null {
   } catch {
     /* storage unavailable */
   }
-  return typeof __PM_ENDPOINT__ === 'undefined' ? null : __PM_ENDPOINT__;
+  return null;
 }
 
 export function saveEndpoint(ep: Endpoint): void {
@@ -89,6 +93,20 @@ export async function fetchData(ep: Endpoint): Promise<PmData> {
   const data = (await res.json()) as PmData;
   if (!data.ok) throw new Error(data.error || 'endpoint returned an error');
   return data;
+}
+
+/** Queue a status change via the webhook. The sheet cell updates immediately;
+ *  the sync applies it to project.md (+ log entry) on its next run. */
+export async function setProjectStatus(ep: Endpoint, projectId: string, status: string): Promise<void> {
+  if (!ep.writeSecret) throw new Error('this connection is read-only');
+  const res = await fetch(ep.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ secret: ep.writeSecret, action: 'setStatus', projectId, status }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { ok: boolean; error?: string };
+  if (!data.ok) throw new Error(data.error || 'write failed');
 }
 
 export function daysSince(ts: string): number | null {

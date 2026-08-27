@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { PmData, Project } from '../api';
-import { ProgressBar, StatusBadge, UrgencyBadge } from '../components';
+import { ProgressBar, StatusControl, UrgencyBadge } from '../components';
 
 const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -11,7 +11,15 @@ function pct(p: Project): number {
   return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : 0;
 }
 
-export function Projects({ data }: { data: PmData }) {
+export function Projects({
+  data,
+  canWrite,
+  setStatus,
+}: {
+  data: PmData;
+  canWrite: boolean;
+  setStatus: (projectId: string, status: string) => Promise<boolean>;
+}) {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: 'last_update', dir: -1 });
 
@@ -95,7 +103,7 @@ export function Projects({ data }: { data: PmData }) {
                   <div className="meta cell-summary">{p.summary}</div>
                 </td>
                 <td>
-                  <StatusBadge status={p.status} />
+                  <StatusControl status={p.status} onChange={canWrite ? (s) => setStatus(p.id, s) : undefined} />
                 </td>
                 <td className="meta">{p.horizon}</td>
                 <td>

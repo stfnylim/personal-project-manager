@@ -1,8 +1,13 @@
 /**
  * PM sync endpoint — Apps Script bound to the Work PM spreadsheet.
  *
- * doPost: receives full state from sync.mjs (secret-protected), rewrites the tabs.
- * doGet:  returns the tabs as JSON (token-protected) for the web dashboard.
+ * doPost (secret-protected):
+ *   default            full-state sync from sync.mjs — rewrites the tabs, clears
+ *                      acknowledged rows from the Pending tab (body.appliedIds)
+ *   action:'setStatus' dashboard status change — updates the Projects tab cell
+ *                      immediately and queues the change in the Pending tab; the
+ *                      next sync run applies it to the markdown (source of truth)
+ * doGet (token-protected): tabs as JSON for the dashboard + the pending queue.
  *
  * SETUP
  * 1. Replace the two constants below with "secret" and "readToken" from your local
@@ -11,8 +16,7 @@
  * 3. Copy the /exec URL into config.work.json as "webhookUrl".
  *
  * After editing this file later: Deploy > Manage deployments > pencil icon > Version: New
- * version > Deploy (the URL stays the same). Just saving the file does NOT update the
- * live deployment.
+ * version > Deploy (the URL stays the same). Just saving does NOT update the live deployment.
  */
 
 const SECRET = 'REPLACE_WITH_secret_FROM_CONFIG';
@@ -20,6 +24,8 @@ const READ_TOKEN = 'REPLACE_WITH_readToken_FROM_CONFIG';
 
 const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues'];
 const UPDATE_HEADERS = ['Timestamp', 'Project', 'Entry'];
+const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
+const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
 
 function doPost(e) {
   let body;
@@ -33,9 +39,12 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
+    if (body.action === 'setStatus') return handleSetStatus(body);
+    if (body.action) return jsonOut({ ok: false, error: 'unknown action: ' + body.action });
     writeProjects(body.projects || []);
     const appended = appendUpdates(body.updates || []);
     writeSummary(body.brief || null, body.generatedAt || '');
+    if (body.appliedIds && body.appliedIds.length) clearPending(body.appliedIds);
     return jsonOut({ ok: true, projects: (body.projects || []).length, newUpdates: appended });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
@@ -52,11 +61,51 @@ function doGet(e) {
     ok: true,
     projects: readTab(ss, 'Projects'),
     updates: readTab(ss, 'Updates'),
+    pending: readTab(ss, 'Pending'),
     brief: summary
       ? { generated: summary.getRange('B1').getDisplayValue(), markdown: summary.getRange('A4').getDisplayValue() }
       : null,
     lastSync: summary ? summary.getRange('B2').getDisplayValue() : '',
   });
+}
+
+function handleSetStatus(body) {
+  const project = String(body.projectId || '');
+  const status = String(body.status || '');
+  if (!project) return jsonOut({ ok: false, error: 'missing projectId' });
+  if (STATUS_VALUES.indexOf(status) === -1) return jsonOut({ ok: false, error: 'bad status' });
+
+  const sheet = ensureSheet('Pending', PENDING_HEADERS);
+  const id = Utilities.getUuid();
+  sheet.appendRow([id, nowString(), project, 'status', status]);
+
+  // Reflect immediately in the Projects tab so every reader sees it before the next sync.
+  const projects = ensureSheet('Projects', PROJECT_HEADERS);
+  const last = projects.getLastRow();
+  if (last > 1) {
+    const ids = projects.getRange(2, 1, last - 1, 1).getDisplayValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (ids[i][0] === project) {
+        projects.getRange(i + 2, 3).setValue(status);
+        break;
+      }
+    }
+  }
+  return jsonOut({ ok: true, id: id });
+}
+
+function clearPending(ids) {
+  const sheet = ensureSheet('Pending', PENDING_HEADERS);
+  const last = sheet.getLastRow();
+  if (last < 2) return;
+  const rows = sheet.getRange(2, 1, last - 1, 1).getDisplayValues();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (ids.indexOf(rows[i][0]) !== -1) sheet.deleteRow(i + 2);
+  }
+}
+
+function nowString() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
 }
 
 function writeProjects(projects) {

@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url';
 // is gitignored, so CI/hosted builds never have it and fall back to the connect
 // screen — only builds made on this machine come out pre-connected.
 const configPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'config.work.json');
-let baked: { url: string; token: string } | null = null;
+let baked: { url: string; token: string; writeSecret?: string } | null = null;
 if (existsSync(configPath)) {
   try {
-    const c = JSON.parse(readFileSync(configPath, 'utf8')) as { webhookUrl?: string; readToken?: string };
+    const c = JSON.parse(readFileSync(configPath, 'utf8')) as { webhookUrl?: string; readToken?: string; secret?: string };
     if (c.webhookUrl && !c.webhookUrl.startsWith('PASTE') && c.readToken) {
-      baked = { url: c.webhookUrl, token: c.readToken };
+      baked = { url: c.webhookUrl, token: c.readToken, writeSecret: c.secret };
     }
   } catch {
     /* unreadable config — build without baked endpoint */

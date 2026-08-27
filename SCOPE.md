@@ -88,6 +88,9 @@ Apps Script bound to the sheet:
 ## Web UI (this repo → GitHub Pages)
 
 - React + TS (Vite), read-only.
+- Mostly read-only; the one write path (added v1.1) is a project's status: local builds show it
+  as a dropdown whose change is queued in a `Pending` sheet tab and applied to `project.md` by
+  the next sync run — markdown stays the source of truth.
 - **Home:** renders the `Summary` tab (markdown) plus headline stats (active/blocked counts, top urgencies).
 - **Projects:** sortable/filterable table of the `Projects` tab.
 - **Project detail:** timeline of that project's `Updates`.
@@ -116,5 +119,5 @@ A scheduled Claude agent that reads the projects folder and writes **markdown on
 
 - Life instance (later; same code, second config).
 - Real auth (no login system — token-in-URL obscurity is the accepted level).
-- Two-way sync (the sheet is never a source; hand-edits get overwritten).
-- Editing projects from the web UI.
+- Hand-editing the sheet (synced cells get overwritten; the `Pending` queue is the only
+  sheet-to-markdown path, and only the dashboard writes it).
