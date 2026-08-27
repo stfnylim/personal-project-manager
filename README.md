@@ -104,10 +104,10 @@ sheet). Setup:
 2. Repo **Settings → Pages → Source: GitHub Actions**.
 3. The *Deploy dashboard* workflow builds and publishes on every push that touches `ui/`.
 
-Connecting: the app asks for the endpoint URL + read token once and keeps them in localStorage —
-never in the repo or the built bundle. To hand it to a coworker, send a one-time link:
-`https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>` — the app
-stores the values, then scrubs them from the address bar.
+Connecting: the app asks for a name, endpoint URL + read token once and keeps them in
+localStorage — never in the repo or the built bundle. To hand it to a coworker, send a one-time
+link: `https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>&label=Work`
+— the app stores the values, then scrubs them from the address bar.
 
 ## Second instance / personal edition
 
@@ -118,6 +118,25 @@ runbook — written to be executed by the Claude on another machine — that sta
 against a chosen config (`PM_CONFIG=config.life.json npm --prefix ui run build`), and an
 optional Notion embed of the hosted dashboard (`?src=…&token=…&stay=1` keeps the connection
 alive inside the iframe; private pages only).
+
+## Global dashboard (multiple sources)
+
+The dashboard is multi-source: it can merge any number of instances (e.g. Work + Life) in the
+browser while the instances keep separate folders, sheets, endpoints, and secrets. With more
+than one source connected, a scope switcher (All · Work · Life) appears in the top bar and every
+merged row carries its source's identity dot + label (colors are validated categorical slots,
+distinct from the status colors). Edits route to the owning instance's endpoint and only where
+that source's write secret is present; briefs stay per-source cards.
+
+Ways to connect sources:
+
+- **Baked build:** `PM_CONFIG=config.work.json,config.life.json npm --prefix ui run build` —
+  each config's `projectsDir` and secret ride along, so prompts and edits target the right
+  instance. An optional `"label"` key in a config overrides the label derived from its filename.
+- **In the app:** the **Sources** screen adds/removes endpoints at runtime (stored in
+  localStorage only; read-only unless baked).
+- **Link:** repeat the params — `?src=…&token=…&label=Work&src=…&token=…&label=Life` — the
+  triples are zipped in order.
 
 ## PM brain
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import type { EditableField, PmData, Project } from '../api';
-import { CopyButton, ProgressBar, StatusControl, UrgencyControl } from '../components';
+import type { EditableField, Project, Source, Tagged } from '../api';
+import { projHref } from '../api';
+import type { SourceState } from '../App';
+import { CopyButton, ProgressBar, SrcTag, StatusControl, UrgencyControl } from '../components';
 import { taskPrompt } from '../prompts';
 
 const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
@@ -13,22 +15,28 @@ function pct(p: Project): number {
 }
 
 export function Projects({
-  data,
-  canWrite,
+  states,
+  sources,
+  showSrc,
   setField,
 }: {
-  data: PmData;
-  canWrite: boolean;
-  setField: (projectId: string, field: EditableField, value: string) => Promise<boolean>;
+  states: SourceState[];
+  sources: Source[];
+  showSrc: boolean;
+  setField: (srcId: string, projectId: string, field: EditableField, value: string) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: 'last_update', dir: -1 });
 
-  const statuses = ['all', 'active', 'blocked', 'backlog', 'done'];
-  const count = (s: string) =>
-    s === 'all' ? data.projects.length : data.projects.filter((p) => p.status === s).length;
+  const projects: Tagged<Project>[] = states.flatMap((s) =>
+    (s.data?.projects ?? []).map((p) => ({ ...p, srcId: s.source.id })),
+  );
+  const allTasks = states.flatMap((s) => (s.data?.tasks ?? []).map((t) => ({ ...t, srcId: s.source.id })));
 
-  const cmp = (a: Project, b: Project): number => {
+  const statuses = ['all', 'active', 'blocked', 'backlog', 'done'];
+  const count = (st: string) => (st === 'all' ? projects.length : projects.filter((p) => p.status === st).length);
+
+  const cmp = (a: Tagged<Project>, b: Tagged<Project>): number => {
     switch (sort.col) {
       case 'name':
         return a.name.localeCompare(b.name);
@@ -42,7 +50,7 @@ export function Projects({
         return a.last_update < b.last_update ? -1 : a.last_update > b.last_update ? 1 : 0;
     }
   };
-  const shown = data.projects.filter((p) => filter === 'all' || p.status === filter);
+  const shown = projects.filter((p) => filter === 'all' || p.status === filter);
   shown.sort((a, b) => cmp(a, b) * sort.dir);
 
   const clickSort = (col: SortCol) =>
@@ -54,15 +62,14 @@ export function Projects({
 
   const arrow = (col: SortCol) => (sort.col === col ? (sort.dir === 1 ? ' ▲' : ' ▼') : '');
 
+  const srcOf = (id: string) => sources.find((s) => s.id === id);
+  const canWrite = (id: string) => Boolean(srcOf(id)?.writeSecret);
+
   return (
     <div className="stack">
       <div className="filters" role="group" aria-label="Filter by status">
         {statuses.map((s) => (
-          <button
-            key={s}
-            className={`chip ${filter === s ? 'chip-on' : ''}`}
-            onClick={() => setFilter(s)}
-          >
+          <button key={s} className={`chip ${filter === s ? 'chip-on' : ''}`} onClick={() => setFilter(s)}>
             {s} <span className="meta">{count(s)}</span>
           </button>
         ))}
@@ -92,10 +99,11 @@ export function Projects({
           </thead>
           <tbody>
             {shown.map((p) => (
-              <tr key={p.id}>
+              <tr key={`${p.srcId}/${p.id}`}>
                 <td>
                   <div className="cell-name">
-                    <a href={`#/p/${encodeURIComponent(p.id)}`}>{p.name}</a>
+                    <a href={projHref(p.srcId, p.id)}>{p.name}</a>
+                    {showSrc && <SrcTag source={srcOf(p.srcId)} sources={sources} />}
                     {p.issues && (
                       <span className="issues" title={p.issues}>
                         ⚠
@@ -105,11 +113,17 @@ export function Projects({
                   <div className="meta cell-summary">{p.summary}</div>
                 </td>
                 <td>
-                  <StatusControl status={p.status} onChange={canWrite ? (v) => setField(p.id, 'status', v) : undefined} />
+                  <StatusControl
+                    status={p.status}
+                    onChange={canWrite(p.srcId) ? (v) => setField(p.srcId, p.id, 'status', v) : undefined}
+                  />
                 </td>
                 <td className="meta">{p.horizon}</td>
                 <td>
-                  <UrgencyControl urgency={p.urgency} onChange={canWrite ? (v) => setField(p.id, 'urgency', v) : undefined} />
+                  <UrgencyControl
+                    urgency={p.urgency}
+                    onChange={canWrite(p.srcId) ? (v) => setField(p.srcId, p.id, 'urgency', v) : undefined}
+                  />
                 </td>
                 <td>
                   <ProgressBar progress={p.progress} />
@@ -117,9 +131,11 @@ export function Projects({
                 <td className="meta mono">{p.last_update}</td>
                 <td className="next-cell">
                   {(() => {
-                    const open = (data.tasks ?? []).filter((t) => t.project === p.id && t.done !== 'done');
+                    const open = allTasks.filter((t) => t.srcId === p.srcId && t.project === p.id && t.done !== 'done');
                     const next = open.find((t) => t.done === 'wip') ?? open[0]; // prefer in-progress
-                    return next ? <CopyButton label="⚡ start next" text={taskPrompt(p.id, next.task)} /> : null;
+                    return next ? (
+                      <CopyButton label="⚡ start next" text={taskPrompt(p.id, next.task, srcOf(p.srcId)?.projectsDir)} />
+                    ) : null;
                   })()}
                 </td>
               </tr>

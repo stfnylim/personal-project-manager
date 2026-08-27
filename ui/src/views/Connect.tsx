@@ -1,62 +1,23 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import type { Endpoint } from '../api';
-import { fetchData, saveEndpoint } from '../api';
+import type { Source } from '../api';
+import { SourceForm } from './Sources';
 
-export function Connect({ onConnect }: { onConnect: (ep: Endpoint) => void }) {
-  const [url, setUrl] = useState('');
-  const [token, setToken] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const ep: Endpoint = { url: url.trim(), token: token.trim() };
-    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(ep.url)) {
-      setError('That does not look like an Apps Script /exec URL.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    try {
-      await fetchData(ep);
-      saveEndpoint(ep);
-      onConnect(ep);
-    } catch (err) {
-      setError(`Could not connect: ${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
+/** First-run screen: no sources connected yet. */
+export function Connect({ onConnect }: { onConnect: (list: Source[]) => void }) {
   return (
     <div className="connect-wrap">
-      <form className="card connect" onSubmit={(e) => void submit(e)}>
-        <h1>Work PM</h1>
+      <div className="card connect">
+        <h1>Project Manager</h1>
         <p className="meta">
-          Connect to the sheet endpoint. The URL and token are kept in this browser only — nothing
-          is stored on the server or in the page.
+          Connect a sheet endpoint. The URL and token are kept in this browser only — nothing is
+          stored on the server or in the page. You can add more sources (e.g. Work and Life) later
+          under "Sources".
         </p>
-        <label>
-          Endpoint URL
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://script.google.com/macros/s/…/exec"
-            required
-          />
-        </label>
-        <label>
-          Read token
-          <input value={token} onChange={(e) => setToken(e.target.value)} required />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button disabled={busy}>{busy ? 'Checking…' : 'Connect'}</button>
+        <SourceForm existing={[]} onAdded={onConnect} />
         <p className="meta small">
-          Ask whoever runs the sync for these two values, or open a link that already has
+          Ask whoever runs the sync for these values, or open a link that already has
           ?src=…&amp;token=… — it fills this in automatically.
         </p>
-      </form>
+      </div>
     </div>
   );
 }

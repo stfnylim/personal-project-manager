@@ -106,9 +106,11 @@ Goal: a Notion embed block showing the live dashboard.
 2. Repo Settings → Pages → Source: **GitHub Actions**. The committed *Deploy dashboard* workflow
    publishes on every push touching `ui/`.
 3. In Notion, on a **private** page: `/embed` →
-   `https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>&stay=1`
+   `https://<user>.github.io/<repo>/?src=<url-encoded webhookUrl>&token=<readToken>&label=Life&stay=1`
    The `stay=1` keeps the connection in the URL so the embed reconnects on every device without
-   relying on iframe storage.
+   relying on iframe storage. For a **global** embed (Work + Life merged), repeat the
+   `src`/`token`/`label` triple once per instance in the same URL — see README.md "Global
+   dashboard (multiple sources)".
 4. **Security note:** that URL grants read access to the PM data to anyone who has it. Keep it
    only in private pages; if it leaks, rotate `READ_TOKEN` in the Apps Script (redeploy), update
    `config.life.json`, rebuild, and re-paste the embed.

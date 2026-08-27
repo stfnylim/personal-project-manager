@@ -2,15 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pm-ui",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "ui", "run", "dev"],
-      "port": 5173
-    },
-    {
-      "name": "pm-ui-preview",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "ui", "run", "preview"],
+      "name": "dashboard-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["ui/node_modules/vite/bin/vite.js", "preview", "ui", "--port", "4173", "--strictPort"],
       "port": 4173
     }
   ]

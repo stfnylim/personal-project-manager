@@ -14,6 +14,14 @@
   --serious: #ec835a;
   --critical: #d03b3b;
   --wash: rgba(11, 11, 11, 0.045);
+  /* Source identity — categorical slots (violet, magenta, aqua, yellow) chosen and
+     validated so no source color can be mistaken for a status color. Assigned by
+     connection order, never cycled; always paired with the source label somewhere
+     on screen (scope chips are the legend). */
+  --source-0: #4a3aa7;
+  --source-1: #e87ba4;
+  --source-2: #1baf7a;
+  --source-3: #eda100;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -27,6 +35,10 @@
     --border: rgba(255, 255, 255, 0.1);
     --accent: #3987e5;
     --wash: rgba(255, 255, 255, 0.06);
+    --source-0: #9085e9;
+    --source-1: #d55181;
+    --source-2: #199e70;
+    --source-3: #c98500;
   }
 }
 
@@ -465,6 +477,93 @@ button.copied {
   white-space: nowrap;
   flex: 1;
   min-width: 200px;
+}
+
+/* Scope switcher & source identity */
+.scope {
+  display: flex;
+  gap: 4px;
+}
+.scope .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.src-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.src-tag .dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* Sources management */
+.source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.source-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+  flex-wrap: wrap;
+}
+.source-list li:first-child {
+  border-top: 0;
+}
+.source-name {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.source-url {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+.source-meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.add-source {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 440px;
+}
+.add-source label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.add-source input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.add-source input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* Filters */

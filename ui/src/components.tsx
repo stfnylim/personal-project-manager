@@ -1,7 +1,25 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ActionRow, TaskOp, TaskRow } from './api';
+import type { ActionRow, Source, TaskOp, TaskRow } from './api';
 import { taskPrompt } from './prompts';
+
+/** Source identity color by connection order (validated categorical slots). */
+export function sourceColor(index: number): string {
+  return `var(--source-${Math.min(index, 3)})`;
+}
+
+/** Small colored dot + label naming the source a row belongs to. Shown only in
+ *  merged ("All") views; the label rides along so meaning never rests on color. */
+export function SrcTag({ source, sources, dotOnly }: { source?: Source; sources: Source[]; dotOnly?: boolean }) {
+  if (!source) return null;
+  const i = sources.findIndex((s) => s.id === source.id);
+  return (
+    <span className="src-tag" title={`${source.label} instance`}>
+      <span className="dot" style={{ background: sourceColor(i) }} aria-hidden />
+      {!dotOnly && source.label}
+    </span>
+  );
+}
 
 const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
@@ -127,9 +145,9 @@ export function CopyButton({ label, text }: { label: string; text: string }) {
 }
 
 /** One brain-curated action: search/url open a tab, chat copies a kickoff prompt. */
-export function ActionButton({ action }: { action: ActionRow }) {
+export function ActionButton({ action, dir }: { action: ActionRow; dir?: string }) {
   if (action.type === 'chat') {
-    return <CopyButton label={action.label} text={taskPrompt(action.project, action.payload)} />;
+    return <CopyButton label={action.label} text={taskPrompt(action.project, action.payload, dir)} />;
   }
   const href =
     action.type === 'search'
@@ -147,9 +165,11 @@ export function ActionButton({ action }: { action: ActionRow }) {
 export function TaskItem({
   t,
   onTask,
+  dir,
 }: {
   t: TaskRow;
   onTask?: (op: TaskOp, state?: string) => Promise<boolean>;
+  dir?: string;
 }) {
   const cls = t.done === 'done' ? 'task-done' : t.done === 'wip' ? 'task-wip' : undefined;
   const glyph = t.done === 'done' ? '☑' : t.done === 'wip' ? '◐' : '☐';
@@ -171,7 +191,7 @@ export function TaskItem({
           </button>
         </span>
       )}
-      {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(t.project, t.task)} />}
+      {t.done !== 'done' && <CopyButton label="start" text={taskPrompt(t.project, t.task, dir)} />}
     </li>
   );
 }

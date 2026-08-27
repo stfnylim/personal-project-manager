@@ -13,6 +13,10 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
+// Windows editors and PowerShell often write a UTF-8 BOM, which would silently
+// break the ^-anchored parsers (a BOM'd "## …" heading stops matching).
+const readText = (file) => readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry-run');
 const configArg = argv.includes('--config') ? argv[argv.indexOf('--config') + 1] : null;
@@ -20,7 +24,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = resolve(configArg || join(repoRoot, 'config.work.json'));
 
 if (!existsSync(configPath)) fail(`config not found: ${configPath}`);
-const config = JSON.parse(readFileSync(configPath, 'utf8'));
+const config = JSON.parse(readText(configPath));
 for (const key of ['projectsDir', 'webhookUrl', 'secret']) {
   if (!config[key]) fail(`config missing "${key}"`);
 }
@@ -65,7 +69,7 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
         continue;
       }
       const wanted = String(tp.text || '').trim();
-      const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+      const lines = readText(file).split(/\r?\n/);
       const hit = lines.findIndex((l) => {
         const m = l.match(/^\s*[-*] \[[ xX~]\]\s+(.*)$/);
         return m && m[1].trim() === wanted;
@@ -98,7 +102,7 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
       console.error(`sync: pending change for unknown project "${project}" — skipped`);
       continue;
     }
-    const text = readFileSync(file, 'utf8');
+    const text = readText(file);
     if ((parseFrontmatter(text).data?.[field] || '') === value) continue; // already applied
     const updated = text.replace(new RegExp(`^(${field}:)[^\\r\\n]*`, 'm'), `$1 ${value}`);
     if (updated === text) {
@@ -145,7 +149,7 @@ for (const id of dirs) {
   if (!existsSync(projectFile)) {
     issues.push('missing project.md');
   } else {
-    const parsed = parseFrontmatter(readFileSync(projectFile, 'utf8'));
+    const parsed = parseFrontmatter(readText(projectFile));
     if (!parsed.data) issues.push('project.md has no frontmatter');
     meta = parsed.data || {};
     body = parsed.body;
@@ -173,7 +177,7 @@ for (const id of dirs) {
   let entries = [];
   const logFile = join(dir, 'log.md');
   if (existsSync(logFile)) {
-    const res = parseLog(readFileSync(logFile, 'utf8'));
+    const res = parseLog(readText(logFile));
     entries = res.entries;
     if (res.unparsedHeadings) {
       issues.push(`${res.unparsedHeadings} log heading(s) not in "## YYYY-MM-DD HH:MM" format`);
@@ -203,7 +207,7 @@ for (const id of dirs) {
 let brief = null;
 const briefFile = join(root, 'BRIEF.md');
 if (existsSync(briefFile)) {
-  const parsed = parseFrontmatter(readFileSync(briefFile, 'utf8'));
+  const parsed = parseFrontmatter(readText(briefFile));
   brief = { generated: parsed.data?.generated || '', markdown: parsed.body.trim() };
 }
 
@@ -213,7 +217,7 @@ const ACTION_TYPES = ['search', 'url', 'chat'];
 let actions = null;
 const actionsFile = join(root, 'ACTIONS.md');
 if (existsSync(actionsFile)) {
-  const parsed = parseFrontmatter(readFileSync(actionsFile, 'utf8'));
+  const parsed = parseFrontmatter(readText(actionsFile));
   const items = [];
   let currentProject = '';
   let badLines = 0;
