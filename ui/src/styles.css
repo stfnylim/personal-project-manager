@@ -352,9 +352,9 @@ button.ghost:hover {
   line-height: 1.6;
   color: var(--ink-2);
 }
-.task-ctl button.danger:hover {
-  border-color: var(--critical);
-  color: var(--critical);
+.task-ctl button:hover {
+  border-color: var(--good);
+  color: var(--good);
 }
 .task-done .task-text {
   color: var(--muted);

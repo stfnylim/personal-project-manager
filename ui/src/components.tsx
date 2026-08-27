@@ -159,21 +159,15 @@ export function TaskItem({
         {glyph}
       </span>
       <span className="task-text">{t.task}</span>
-      {onTask && (
+      {onTask && t.done !== 'done' && (
         <span className="task-ctl">
           {t.done === 'open' && (
             <button title="mark in progress" onClick={() => void onTask('task_state', 'wip')}>
               ▶
             </button>
           )}
-          <button
-            className="danger"
-            title="delete this task"
-            onClick={() => {
-              if (window.confirm(`Delete task: "${t.task}"?`)) void onTask('task_delete');
-            }}
-          >
-            ✕
+          <button title="done — clears this task off the list" onClick={() => void onTask('task_delete')}>
+            ✓
           </button>
         </span>
       )}
