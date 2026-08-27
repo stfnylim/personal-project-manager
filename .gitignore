@@ -1,4 +1,5 @@
 config.work.json
 config.life.json
+sync/last-run.log
 node_modules/
 dist/
