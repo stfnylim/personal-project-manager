@@ -253,9 +253,52 @@ if (existsSync(actionsFile)) {
   actions = { generated: parsed.data?.generated || '', items };
 }
 
+// ---- payload --------------------------------------------------------------
+// `tabs` is the canonical shape: newer Apps Script deployments write whatever
+// tabs the sync sends, so schema changes (e.g. a new column) never touch the
+// Apps Script again. The bespoke top-level fields are kept alongside for older
+// deployments and can be dropped once every instance runs the generic script.
+const tabs = [
+  {
+    name: 'Projects',
+    headers: ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues', 'Repo', 'Due'],
+    rows: projects.map((p) => [
+      p.id,
+      p.name,
+      p.status,
+      p.horizon,
+      p.urgency,
+      p.progressTotal ? `${p.progressDone}/${p.progressTotal}` : '',
+      p.summary,
+      p.lastUpdate,
+      p.issues.join('; '),
+      p.repo || '',
+      p.due || '',
+    ]),
+  },
+  {
+    name: 'Updates',
+    headers: ['Timestamp', 'Project', 'Entry'],
+    rows: updates.map((u) => [u.timestamp, u.projectId, u.entry]),
+    append: true, // log history: dedup + append, never cleared
+  },
+  {
+    name: 'Tasks',
+    headers: ['Project', 'Done', 'Task'],
+    rows: taskRows.map((t) => [t.project, t.state, t.task]),
+  },
+  {
+    name: 'Actions',
+    headers: ['Project', 'Label', 'Type', 'Payload'],
+    rows: (actions?.items ?? []).map((a) => [a.project, a.label, a.type, a.payload]),
+  },
+];
+
 const payload = {
   secret: config.secret,
   generatedAt: formatDate(new Date()),
+  tabs,
+  actionsGenerated: actions?.generated || '',
   projects,
   updates,
   tasks: taskRows,

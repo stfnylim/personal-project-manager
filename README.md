@@ -33,8 +33,17 @@ markdown folders ──(sync.mjs, scheduled)──▶ Apps Script doPost ──�
 5. Copy the Web app URL (ends in `/exec`) into `config.work.json` as `webhookUrl`.
 6. Test: `node sync/sync.mjs` — the tabs should appear and fill.
 
-**After editing Code.gs later:** Deploy → Manage deployments → pencil → Version: *New version* →
-Deploy. Saving alone does not update the live URL.
+**After editing Code.gs later — automated (preferred):** `node sync/push-gs.mjs --config
+config.<instance>.json` pushes the repo's Code.gs (with that instance's secrets injected from
+its config at push time) and cuts a new version onto the existing deployment — the URL never
+changes. One-time per machine: enable the Apps Script API at
+script.google.com/home/usersettings, `npx @google/clasp login`, and add `"scriptId"` (Apps
+Script editor → Project Settings) to each config. Manual fallback: Deploy → Manage deployments →
+pencil → Version: *New version* → Deploy (saving alone does not update the live URL).
+
+Schema changes rarely need a Code.gs push at all: the sync sends generic
+`tabs: [{name, headers, rows, append?}]` and the script writes whatever it receives, so new
+columns are a sync.mjs-only change.
 
 Sharing with a coworker: share the spreadsheet read-only, or (phase 3) give them the dashboard
 link once — the dashboard reads `doGet?token=…` and stores the endpoint in localStorage, so

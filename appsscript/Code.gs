@@ -1,41 +1,34 @@
 /**
- * PM sync endpoint — Apps Script bound to the Work PM spreadsheet.
+ * PM sync endpoint — Apps Script bound to a PM spreadsheet (one per instance).
  *
  * doPost (secret-protected):
- *   default            full-state sync from sync.mjs — rewrites the tabs, clears
- *                      acknowledged rows from the Pending tab (body.appliedIds)
- *   action:'setField'  dashboard edit (status or urgency) — updates the Projects
- *                      tab cell immediately and queues the change in the Pending
- *                      tab; the next sync run applies it to the markdown
- *                      (source of truth). 'setStatus' is a legacy alias.
+ *   default            full-state sync from sync.mjs — writes whatever `tabs`
+ *                      the payload carries ({name, headers, rows, append?}), so
+ *                      schema changes are sync-side only and this script rarely
+ *                      needs updating. Clears acknowledged rows from the
+ *                      Pending tab (body.appliedIds).
+ *   action:'setField'  dashboard edit (e.g. status/urgency or a task change) —
+ *                      updates the sheet cell immediately and queues the change
+ *                      in the Pending tab; the next sync run applies it to the
+ *                      markdown (source of truth). 'setStatus' is a legacy alias.
  * doGet (token-protected): tabs as JSON for the dashboard + the pending queue.
  *
- * SETUP
+ * SETUP (first time; afterwards deploy updates via clasp — see README)
  * 1. Replace the two constants below with "secret" and "readToken" from your local
- *    config.work.json (never commit those values anywhere).
+ *    config.<instance>.json (never commit those values anywhere).
  * 2. Deploy > New deployment > type: Web app > Execute as: Me > Who has access: Anyone.
- * 3. Copy the /exec URL into config.work.json as "webhookUrl".
- *
- * After editing this file later: Deploy > Manage deployments > pencil icon > Version: New
- * version > Deploy (the URL stays the same). Just saving does NOT update the live deployment.
+ * 3. Copy the /exec URL into the config as "webhookUrl".
  */
 
 const SECRET = 'REPLACE_WITH_secret_FROM_CONFIG';
 const READ_TOKEN = 'REPLACE_WITH_readToken_FROM_CONFIG';
 
-const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues', 'Repo', 'Due'];
-const UPDATE_HEADERS = ['Timestamp', 'Project', 'Entry'];
-const TASK_HEADERS = ['Project', 'Done', 'Task'];
-const ACTION_HEADERS = ['Project', 'Label', 'Type', 'Payload'];
 const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
-const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done', 'archived'];
-const URGENCY_VALUES = ['high', 'medium', 'low'];
 const TASK_STATES = ['open', 'wip', 'done'];
-// Editable fields: allowed values + their column in the Projects tab.
-const EDITABLE_FIELDS = {
-  status: { values: STATUS_VALUES, col: 3 },
-  urgency: { values: URGENCY_VALUES, col: 5 },
-};
+// Dashboard-editable project fields; the matching column is found by header name,
+// and values are only sanity-checked here — sync.mjs re-validates when applying.
+const EDITABLE_FIELDS = ['status', 'urgency'];
+const VALUE_RE = /^[a-z0-9-]{1,30}$/;
 
 function doPost(e) {
   let body;
@@ -56,13 +49,22 @@ function doPost(e) {
     }
     if (body.action === 'setField') return handleSetField(body);
     if (body.action) return jsonOut({ ok: false, error: 'unknown action: ' + body.action });
-    writeProjects(body.projects || []);
-    const appended = appendUpdates(body.updates || []);
-    writeTasks(body.tasks || []);
-    writeActions(body.actions || null);
-    writeSummary(body.brief || null, body.generatedAt || '', body.actions ? body.actions.generated : '');
+
+    const tabs = body.tabs || [];
+    let written = 0;
+    let appended = 0;
+    for (let i = 0; i < tabs.length; i++) {
+      const t = tabs[i];
+      if (!t || !t.name || !t.headers || !t.rows) continue;
+      if (t.append) appended += appendTab(t);
+      else {
+        writeTab(t);
+        written += t.rows.length;
+      }
+    }
+    writeSummary(body.brief || null, body.generatedAt || '', body.actionsGenerated || '');
     if (body.appliedIds && body.appliedIds.length) clearPending(body.appliedIds);
-    return jsonOut({ ok: true, projects: (body.projects || []).length, newUpdates: appended });
+    return jsonOut({ ok: true, rows: written, newUpdates: appended });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
   } finally {
@@ -89,15 +91,24 @@ function doGet(e) {
   });
 }
 
+/** Column number (1-based) whose header matches `name` case-insensitively, or -1. */
+function colByHeader(sheet, name) {
+  if (sheet.getLastRow() < 1) return -1;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i]).toLowerCase() === String(name).toLowerCase()) return i + 1;
+  }
+  return -1;
+}
+
 function handleSetField(body) {
   const project = String(body.projectId || '');
   const field = String(body.field || '');
   const value = String(body.value || '');
   if (!project) return jsonOut({ ok: false, error: 'missing projectId' });
   if (field === 'task_state' || field === 'task_delete') return handleTaskChange(project, field, value);
-  const spec = EDITABLE_FIELDS[field];
-  if (!spec) return jsonOut({ ok: false, error: 'field not editable: ' + field });
-  if (spec.values.indexOf(value) === -1) return jsonOut({ ok: false, error: 'bad value for ' + field });
+  if (EDITABLE_FIELDS.indexOf(field) === -1) return jsonOut({ ok: false, error: 'field not editable: ' + field });
+  if (!VALUE_RE.test(value)) return jsonOut({ ok: false, error: 'bad value for ' + field });
 
   const sheet = ensureSheet('Pending', PENDING_HEADERS);
   const id = Utilities.getUuid();
@@ -106,14 +117,17 @@ function handleSetField(body) {
   range.setValues([[id, nowString(), project, field, value]]);
 
   // Reflect immediately in the Projects tab so every reader sees it before the next sync.
-  const projects = ensureSheet('Projects', PROJECT_HEADERS);
-  const last = projects.getLastRow();
-  if (last > 1) {
-    const ids = projects.getRange(2, 1, last - 1, 1).getDisplayValues();
-    for (let i = 0; i < ids.length; i++) {
-      if (ids[i][0] === project) {
-        projects.getRange(i + 2, spec.col).setValue(value);
-        break;
+  const projects = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Projects');
+  if (projects) {
+    const col = colByHeader(projects, field);
+    const last = projects.getLastRow();
+    if (col !== -1 && last > 1) {
+      const ids = projects.getRange(2, 1, last - 1, 1).getDisplayValues();
+      for (let i = 0; i < ids.length; i++) {
+        if (ids[i][0] === project) {
+          projects.getRange(i + 2, col).setValue(value);
+          break;
+        }
       }
     }
   }
@@ -141,15 +155,20 @@ function handleTaskChange(project, field, value) {
   range.setNumberFormat('@');
   range.setValues([[id, nowString(), project, field, value]]);
 
-  const tasks = ensureSheet('Tasks', TASK_HEADERS);
-  const last = tasks.getLastRow();
-  if (last > 1) {
-    const rows = tasks.getRange(2, 1, last - 1, TASK_HEADERS.length).getDisplayValues();
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i][0] === project && rows[i][2] === text) {
-        if (field === 'task_delete') tasks.deleteRow(i + 2);
-        else tasks.getRange(i + 2, 2).setValue(String(payload.state));
-        break;
+  const tasks = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tasks');
+  if (tasks) {
+    const projCol = colByHeader(tasks, 'Project');
+    const doneCol = colByHeader(tasks, 'Done');
+    const taskCol = colByHeader(tasks, 'Task');
+    const last = tasks.getLastRow();
+    if (projCol !== -1 && doneCol !== -1 && taskCol !== -1 && last > 1) {
+      const rows = tasks.getRange(2, 1, last - 1, tasks.getLastColumn()).getDisplayValues();
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][projCol - 1] === project && rows[i][taskCol - 1] === text) {
+          if (field === 'task_delete') tasks.deleteRow(i + 2);
+          else tasks.getRange(i + 2, doneCol).setValue(String(payload.state));
+          break;
+        }
       }
     }
   }
@@ -170,50 +189,53 @@ function nowString() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
 }
 
-function writeProjects(projects) {
-  const sheet = ensureSheet('Projects', PROJECT_HEADERS);
+/** Replace a tab's contents with the payload's headers + rows. */
+function writeTab(t) {
+  const sheet = ensureSheet(t.name, t.headers);
   const lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, PROJECT_HEADERS.length).clearContent();
-  if (!projects.length) return;
-  const rows = projects.map((p) => [
-    p.id,
-    p.name,
-    p.status,
-    p.horizon,
-    p.urgency,
-    p.progressTotal ? p.progressDone + '/' + p.progressTotal : '',
-    p.summary,
-    p.lastUpdate,
-    (p.issues || []).join('; '),
-    p.repo || '',
-    p.due || '',
-  ]);
-  const range = sheet.getRange(2, 1, rows.length, PROJECT_HEADERS.length);
+  const lastCol = Math.max(sheet.getLastColumn(), t.headers.length);
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+  if (!t.rows.length) return;
+  const rows = t.rows.map((r) => padRow(r, t.headers.length));
+  const range = sheet.getRange(2, 1, rows.length, t.headers.length);
   range.setNumberFormat('@'); // keep "2/9" and timestamps as text, not auto-dates
   range.setValues(rows);
 }
 
-function appendUpdates(updates) {
-  const sheet = ensureSheet('Updates', UPDATE_HEADERS);
+/** Append only rows not already present (keyed on truncated cell values). */
+function appendTab(t) {
+  const sheet = ensureSheet(t.name, t.headers);
   const existing = {};
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    sheet.getRange(2, 1, lastRow - 1, UPDATE_HEADERS.length).getDisplayValues().forEach((r) => {
-      existing[updateKey(r[0], r[1], r[2])] = true;
-    });
+    sheet
+      .getRange(2, 1, lastRow - 1, t.headers.length)
+      .getDisplayValues()
+      .forEach(function (r) {
+        existing[rowKey(r)] = true;
+      });
   }
-  const fresh = updates.filter((u) => !existing[updateKey(u.timestamp, u.projectId, u.entry)]);
+  const fresh = t.rows.map((r) => padRow(r, t.headers.length)).filter((r) => !existing[rowKey(r)]);
   if (!fresh.length) return 0;
-  fresh.sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
-  const rows = fresh.map((u) => [u.timestamp, u.projectId, u.entry]);
-  const range = sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, UPDATE_HEADERS.length);
+  fresh.sort(); // oldest first when col 0 is a timestamp
+  const range = sheet.getRange(sheet.getLastRow() + 1, 1, fresh.length, t.headers.length);
   range.setNumberFormat('@');
-  range.setValues(rows);
-  return rows.length;
+  range.setValues(fresh);
+  return fresh.length;
 }
 
-function updateKey(ts, projectId, entry) {
-  return ts + '|' + projectId + '|' + String(entry).slice(0, 40);
+function padRow(r, len) {
+  const out = [];
+  for (let i = 0; i < len; i++) out.push(r[i] === undefined || r[i] === null ? '' : r[i]);
+  return out;
+}
+
+function rowKey(r) {
+  return r
+    .map(function (c) {
+      return String(c).slice(0, 40);
+    })
+    .join('|');
 }
 
 function writeSummary(brief, generatedAt, actionsGenerated) {
@@ -229,29 +251,6 @@ function writeSummary(brief, generatedAt, actionsGenerated) {
   md.setValue(brief ? brief.markdown : '');
   md.setWrap(true);
   sheet.setColumnWidth(1, 700);
-}
-
-function writeTasks(tasks) {
-  const sheet = ensureSheet('Tasks', TASK_HEADERS);
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, TASK_HEADERS.length).clearContent();
-  if (!tasks.length) return;
-  const rows = tasks.map((t) => [t.project, t.state || (t.done ? 'done' : 'open'), t.task]);
-  const range = sheet.getRange(2, 1, rows.length, TASK_HEADERS.length);
-  range.setNumberFormat('@');
-  range.setValues(rows);
-}
-
-function writeActions(actions) {
-  const sheet = ensureSheet('Actions', ACTION_HEADERS);
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, ACTION_HEADERS.length).clearContent();
-  const items = actions && actions.items ? actions.items : [];
-  if (!items.length) return;
-  const rows = items.map((a) => [a.project, a.label, a.type, a.payload]);
-  const range = sheet.getRange(2, 1, rows.length, ACTION_HEADERS.length);
-  range.setNumberFormat('@');
-  range.setValues(rows);
 }
 
 function ensureSheet(name, headers) {
