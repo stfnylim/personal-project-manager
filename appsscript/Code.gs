@@ -23,12 +23,12 @@
 const SECRET = 'REPLACE_WITH_secret_FROM_CONFIG';
 const READ_TOKEN = 'REPLACE_WITH_readToken_FROM_CONFIG';
 
-const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues', 'Repo'];
+const PROJECT_HEADERS = ['ID', 'Name', 'Status', 'Horizon', 'Urgency', 'Progress', 'Summary', 'Last Update', 'Issues', 'Repo', 'Due'];
 const UPDATE_HEADERS = ['Timestamp', 'Project', 'Entry'];
 const TASK_HEADERS = ['Project', 'Done', 'Task'];
 const ACTION_HEADERS = ['Project', 'Label', 'Type', 'Payload'];
 const PENDING_HEADERS = ['Id', 'Requested', 'Project', 'Field', 'Value'];
-const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
+const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done', 'archived'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
 const TASK_STATES = ['open', 'wip', 'done'];
 // Editable fields: allowed values + their column in the Projects tab.
@@ -186,6 +186,7 @@ function writeProjects(projects) {
     p.lastUpdate,
     (p.issues || []).join('; '),
     p.repo || '',
+    p.due || '',
   ]);
   const range = sheet.getRange(2, 1, rows.length, PROJECT_HEADERS.length);
   range.setNumberFormat('@'); // keep "2/9" and timestamps as text, not auto-dates

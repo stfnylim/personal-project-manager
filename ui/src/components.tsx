@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ActionRow, Source, TaskOp, TaskRow } from './api';
+import { daysUntil } from './api';
 import { taskPrompt } from './prompts';
 
 /** Source identity color by connection order (validated categorical slots). */
@@ -21,7 +22,7 @@ export function SrcTag({ source, sources, dotOnly }: { source?: Source; sources:
   );
 }
 
-const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done'];
+const STATUS_VALUES = ['active', 'blocked', 'backlog', 'done', 'archived'];
 const URGENCY_VALUES = ['high', 'medium', 'low'];
 
 // Status colors are reserved roles (dataviz status palette); every badge pairs
@@ -31,6 +32,7 @@ const STATUS_KIND: Record<string, string> = {
   blocked: 'serious',
   backlog: 'muted',
   done: 'good',
+  archived: 'muted',
 };
 const URGENCY_KIND: Record<string, string> = {
   high: 'critical',
@@ -104,6 +106,21 @@ export function StatusControl({ status, onChange }: { status: string; onChange?:
 export function UrgencyControl({ urgency, onChange }: { urgency: string; onChange?: (v: string) => Promise<boolean> }) {
   if (!onChange) return <UrgencyBadge urgency={urgency} />;
   return <BadgeSelect value={urgency} values={URGENCY_VALUES} kindMap={URGENCY_KIND} label="Project urgency" onChange={onChange} />;
+}
+
+/** Deadline badge: critical when overdue, warning when due within 3 days,
+ *  quiet chip otherwise. Nothing for projects without a due date or already done. */
+export function DueBadge({ due, status }: { due?: string; status: string }) {
+  const d = daysUntil(due);
+  if (d === null || status === 'done' || status === 'archived') return null;
+  if (d < 0) return <Badge kind="critical">{`overdue ${-d}d`}</Badge>;
+  if (d === 0) return <Badge kind="warning">due today</Badge>;
+  if (d <= 3) return <Badge kind="warning">{`due in ${d}d`}</Badge>;
+  return (
+    <span className="chip chip-static" title={`due ${due}`}>
+      due {due}
+    </span>
+  );
 }
 
 export function ProgressBar({ progress }: { progress: string }) {

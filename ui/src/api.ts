@@ -9,6 +9,8 @@ export interface Project {
   last_update: string;
   issues: string;
   repo?: string;
+  /** optional deadline, YYYY-MM-DD */
+  due?: string;
 }
 
 export interface Update {
@@ -236,6 +238,16 @@ export async function sendTaskChange(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as { ok: boolean; error?: string };
   if (!data.ok) throw new Error(data.error || 'write failed');
+}
+
+/** Days until a YYYY-MM-DD deadline: 0 = today, negative = overdue. */
+export function daysUntil(due?: string): number | null {
+  const m = (due || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const then = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((then.getTime() - today.getTime()) / 86400000);
 }
 
 export function daysSince(ts: string): number | null {

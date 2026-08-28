@@ -43,17 +43,24 @@ dashboard history.
 
 ## project.md
 
-Copy `_templates\project.md`. Frontmatter — all five fields required, values exactly as listed:
+Copy `_templates\project.md`. Frontmatter — the five listed fields required, values exactly as
+listed; `due` is optional:
 
 ```yaml
 ---
 name: Human-readable project name
-status: active        # active | blocked | backlog | done
+status: active        # active | blocked | backlog | done | archived
 horizon: short        # short (days/weeks) | long (months/ongoing)
 urgency: medium       # high | medium | low
 summary: One or two sentences describing the goal, written for a reader who was not in the chat.
+due: 2026-09-15       # optional deadline, YYYY-MM-DD — omit the line if there is none
 ---
 ```
+
+Status meanings: `done` = finished work worth keeping visible; `archived` = out of sight — the
+dashboard hides archived projects everywhere except the Projects view's "archived" tab. Archive
+abandoned efforts or done work that no longer needs to be seen; never delete the folder (history
+stays answerable). A `due` date past or near moves the project into "Needs attention".
 
 Body: a `## Tasks` section with a markdown checkbox list. Dashboard progress ("3/9") is **derived
 by counting these checkboxes** — keep them current and never write manual counters.

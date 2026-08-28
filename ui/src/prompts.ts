@@ -61,7 +61,7 @@ export function taskStartPrompt(ctx: TaskContext, taskText: string): string {
     '',
     'What the tracker knows right now:',
     `- Goal: ${p.summary}`,
-    `- Status: ${p.status}, urgency ${p.urgency}, tasks done ${p.progress || '—'}`,
+    `- Status: ${p.status}, urgency ${p.urgency}, tasks done ${p.progress || '—'}${p.due ? `, due ${p.due}` : ''}`,
   ];
   if (recent.length) lines.push('- Recent log (newest first):', ...recent);
   if (ctx.openSiblings.length)

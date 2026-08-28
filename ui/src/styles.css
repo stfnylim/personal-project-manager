@@ -479,6 +479,29 @@ button.copied {
   min-width: 200px;
 }
 
+/* Embed mode (iframe, e.g. Notion): one column, one scroll context, tighter chrome */
+.app-embed .home-grid {
+  grid-template-columns: 1fr;
+}
+.app-embed .home-rail {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+.app-embed .topbar {
+  position: static;
+}
+.app-embed .topbar-prompts {
+  display: none;
+}
+.app-embed main {
+  padding-top: 14px;
+  padding-bottom: 24px;
+}
+.app-embed .card {
+  padding: 14px 16px;
+}
+
 /* Scope switcher & source identity */
 .scope {
   display: flex;

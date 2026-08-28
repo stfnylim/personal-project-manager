@@ -12,6 +12,16 @@ import { addProjectPrompt, newProjectPrompt } from './prompts';
 const REFRESH_MS = 5 * 60 * 1000;
 const SCOPE_KEY = 'pm-scope';
 
+// Inside an iframe (e.g. a Notion embed) the page collapses to one column with a
+// single scroll context — nested scrollbars in a small fixed-height frame are noise.
+const EMBEDDED = (() => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+
 export interface SourceState {
   source: Source;
   data?: PmData;
@@ -158,7 +168,7 @@ export function App() {
     .sort()[0];
 
   return (
-    <div className="app">
+    <div className={EMBEDDED ? 'app app-embed' : 'app'}>
       <header className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="#/">

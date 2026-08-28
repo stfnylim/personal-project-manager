@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import type { EditableField, Project, Source, Tagged } from '../api';
-import { projHref } from '../api';
+import { daysUntil, projHref } from '../api';
 import type { SourceState } from '../App';
-import { CopyButton, ProgressBar, SrcTag, StatusControl, UrgencyControl } from '../components';
+import { CopyButton, DueBadge, ProgressBar, SrcTag, StatusControl, UrgencyControl } from '../components';
 import { taskStartPrompt } from '../prompts';
 
-const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3 };
+const STATUS_ORDER: Record<string, number> = { active: 0, blocked: 1, backlog: 2, done: 3, archived: 4 };
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
-type SortCol = 'name' | 'status' | 'urgency' | 'progress' | 'last_update';
+type SortCol = 'name' | 'status' | 'urgency' | 'progress' | 'due' | 'last_update';
 
 function pct(p: Project): number {
   const m = p.progress.match(/^(\d+)\/(\d+)$/);
@@ -33,8 +33,10 @@ export function Projects({
   );
   const allTasks = states.flatMap((s) => (s.data?.tasks ?? []).map((t) => ({ ...t, srcId: s.source.id })));
 
-  const statuses = ['all', 'active', 'blocked', 'backlog', 'done'];
-  const count = (st: string) => (st === 'all' ? projects.length : projects.filter((p) => p.status === st).length);
+  // "all" means all *live* projects; archived ones show only under their own tab
+  const statuses = ['all', 'active', 'blocked', 'backlog', 'done', 'archived'];
+  const count = (st: string) =>
+    st === 'all' ? projects.filter((p) => p.status !== 'archived').length : projects.filter((p) => p.status === st).length;
 
   const cmp = (a: Tagged<Project>, b: Tagged<Project>): number => {
     switch (sort.col) {
@@ -46,11 +48,14 @@ export function Projects({
         return (URGENCY_ORDER[a.urgency] ?? 9) - (URGENCY_ORDER[b.urgency] ?? 9);
       case 'progress':
         return pct(a) - pct(b);
+      case 'due':
+        // missing due dates sort last regardless of direction
+        return (daysUntil(a.due) ?? Infinity * sort.dir) - (daysUntil(b.due) ?? Infinity * sort.dir);
       default:
         return a.last_update < b.last_update ? -1 : a.last_update > b.last_update ? 1 : 0;
     }
   };
-  const shown = projects.filter((p) => filter === 'all' || p.status === filter);
+  const shown = projects.filter((p) => (filter === 'all' ? p.status !== 'archived' : p.status === filter));
   shown.sort((a, b) => cmp(a, b) * sort.dir);
 
   const clickSort = (col: SortCol) =>
@@ -92,6 +97,9 @@ export function Projects({
                 <button onClick={() => clickSort('progress')}>Progress{arrow('progress')}</button>
               </th>
               <th>
+                <button onClick={() => clickSort('due')}>Due{arrow('due')}</button>
+              </th>
+              <th>
                 <button onClick={() => clickSort('last_update')}>Last update{arrow('last_update')}</button>
               </th>
               <th>Next</th>
@@ -128,6 +136,9 @@ export function Projects({
                 <td>
                   <ProgressBar progress={p.progress} />
                 </td>
+                <td>
+                  <DueBadge due={p.due} status={p.status} />
+                </td>
                 <td className="meta mono">{p.last_update}</td>
                 <td className="next-cell">
                   {(() => {
@@ -151,7 +162,7 @@ export function Projects({
             ))}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={7} className="meta">
+                <td colSpan={8} className="meta">
                   Nothing with status "{filter}".
                 </td>
               </tr>

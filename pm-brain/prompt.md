@@ -5,7 +5,8 @@ commit and sync as instructed at the end. Do not modify, create, or delete any o
 Steps:
 
 1. Read `PROTOCOL.md`, then every `<project-id>/project.md` and `<project-id>/log.md` in this
-   folder (skip `_templates`).
+   folder (skip `_templates`, and skip projects whose status is `archived` entirely — they
+   appear nowhere in the brief or actions).
 2. Overwrite `BRIEF.md` with exactly this shape:
 
    ---
@@ -18,8 +19,10 @@ Steps:
    ## Needs attention
    - <one line per qualifying project — why it matters and a concrete suggested next action.
      A project qualifies ONLY if its status is `blocked`, or its status is `active` AND its
-     urgency is `high`. Read those two values from the frontmatter; do not infer them from the
-     prose. If NO project qualifies, write the single line "- Nothing blocked or high-urgency."
+     urgency is `high`, or it is not `done` and its optional `due` date (frontmatter,
+     YYYY-MM-DD) is past or within 3 days of today. Read those values from the frontmatter; do
+     not infer them from the prose. Mention the deadline when it is the reason a project is
+     listed. If NO project qualifies, write the single line "- Nothing blocked or high-urgency."
      and nothing else in this section. Never write a "nothing qualifies" line alongside listed
      projects — that contradicts itself.>
 

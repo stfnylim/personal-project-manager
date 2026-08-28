@@ -31,7 +31,7 @@ for (const key of ['projectsDir', 'webhookUrl', 'secret']) {
 const root = config.projectsDir;
 if (!existsSync(root)) fail(`projects dir not found: ${root}`);
 
-const STATUS = ['active', 'blocked', 'backlog', 'done'];
+const STATUS = ['active', 'blocked', 'backlog', 'done', 'archived'];
 const HORIZON = ['short', 'long'];
 const URGENCY = ['high', 'medium', 'low'];
 const EDITABLE_FIELDS = { status: STATUS, urgency: URGENCY }; // dashboard-editable
@@ -159,6 +159,9 @@ for (const id of dirs) {
     checkEnum(meta, 'status', STATUS, issues);
     checkEnum(meta, 'horizon', HORIZON, issues);
     checkEnum(meta, 'urgency', URGENCY, issues);
+    if (meta.due && !/^\d{4}-\d{2}-\d{2}$/.test(meta.due)) {
+      issues.push(`due "${meta.due}" not in YYYY-MM-DD format`);
+    }
   }
 
   const taskItems = [];
@@ -199,6 +202,7 @@ for (const id of dirs) {
     progressTotal: done + open,
     summary: meta.summary || '',
     repo: meta.repo || '',
+    due: /^\d{4}-\d{2}-\d{2}$/.test(meta.due || '') ? meta.due : '',
     lastUpdate,
     issues,
   });
