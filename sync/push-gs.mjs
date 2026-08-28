@@ -13,7 +13,7 @@
  * Usage:
  *   node sync/push-gs.mjs --config config.life.json
  */
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, realpathSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -44,7 +44,9 @@ code = code
   .replace("const READ_TOKEN = 'REPLACE_WITH_readToken_FROM_CONFIG';", `const READ_TOKEN = '${config.readToken}';`);
 
 // Stage in a temp dir so injected secrets never sit inside the repo.
-const stage = mkdtempSync(join(tmpdir(), 'pm-gs-'));
+// realpathSync.native expands Windows 8.3 short names (STEPHA~1) — clasp treats a
+// path that doesn't match its canonical form as a symlink and refuses to push.
+const stage = realpathSync.native(mkdtempSync(join(tmpdir(), 'pm-gs-')));
 try {
   writeFileSync(join(stage, 'Code.gs'), code);
   writeFileSync(
