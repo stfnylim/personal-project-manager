@@ -343,7 +343,8 @@ try {
   }
   if (!result.ok) fail(`webhook error: ${result.error}`);
   const ack = appliedIds.length ? `, ${appliedIds.length} pending change(s) cleared` : '';
-  console.log(`synced OK: ${result.projects} project(s) written, ${result.newUpdates} new update(s) appended${ack}`);
+  const written = result.rows ?? result.projects; // rows: generic script; projects: legacy
+  console.log(`synced OK: ${written} row(s) written, ${result.newUpdates} new update(s) appended${ack}`);
 } catch (err) {
   fail(String(err));
 }

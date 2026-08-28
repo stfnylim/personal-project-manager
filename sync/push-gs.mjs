@@ -49,13 +49,26 @@ try {
   writeFileSync(join(stage, 'Code.gs'), code);
   writeFileSync(
     join(stage, 'appsscript.json'),
-    JSON.stringify({ timeZone: config.timeZone || 'America/Los_Angeles', exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8' }, null, 2),
+    JSON.stringify(
+      {
+        timeZone: config.timeZone || 'America/Los_Angeles',
+        exceptionLogging: 'STACKDRIVER',
+        runtimeVersion: 'V8',
+        // web app entry point — without this the deployed /exec URL 404s
+        webapp: { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' },
+      },
+      null,
+      2,
+    ),
   );
   writeFileSync(join(stage, '.clasp.json'), JSON.stringify({ scriptId: config.scriptId, rootDir: '.' }, null, 2));
 
+  // Instances on different Google accounts use clasp's named credentials:
+  // `clasp login --user <name>` once per account, "claspUser": "<name>" in the config.
+  const user = config.claspUser ? `--user ${config.claspUser} ` : '';
   const run = (cmd) => {
     console.log(`push-gs: ${cmd}`);
-    execSync(`npx --yes @google/clasp ${cmd}`, { cwd: stage, stdio: 'inherit' });
+    execSync(`npx --yes @google/clasp ${user}${cmd}`, { cwd: stage, stdio: 'inherit' });
   };
   run('push -f');
   run(`deploy -i ${deploymentId} -d "push-gs ${new Date().toISOString().slice(0, 16)}"`);
