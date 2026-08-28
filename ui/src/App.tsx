@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EditableField, PmData, Source, TaskOp } from './api';
-import { fetchData, loadSources, sendTaskChange, setProjectField } from './api';
+import { fetchData, loadSources, requestBrief, sendTaskChange, setProjectField } from './api';
 import { Connect } from './views/Connect';
 import { Home } from './views/Home';
 import { Projects } from './views/Projects';
@@ -40,6 +40,7 @@ export function App() {
   const [sources, setSources] = useState<Source[]>(loadSources);
   const [states, setStates] = useState<Record<string, SourceState>>({});
   const [loading, setLoading] = useState(false);
+  const [briefQueued, setBriefQueued] = useState(false);
   const [route, setRoute] = useState(window.location.hash);
   const [scope, setScopeRaw] = useState(loadScope);
 
@@ -162,6 +163,22 @@ export function App() {
   // only source — in merged scope they wait until a scope chip is picked
   const promptSource = !multi ? sources[0] : scope !== 'all' ? bySrc(scope) : undefined;
 
+  // the brief button targets the same single instance, and needs write access
+  const briefSource = promptSource?.writeSecret ? promptSource : undefined;
+  const queueBrief = async () => {
+    if (!briefSource) return;
+    try {
+      await requestBrief(briefSource);
+      setBriefQueued(true);
+      window.setTimeout(() => setBriefQueued(false), 8000);
+    } catch (err) {
+      setStates((m) => ({
+        ...m,
+        [briefSource.id]: { ...m[briefSource.id], source: briefSource, error: `brief request failed: ${(err as Error).message}` },
+      }));
+    }
+  };
+
   const oldestSync = scopedStates
     .map((s) => s.data?.lastSync)
     .filter(Boolean)
@@ -207,6 +224,15 @@ export function App() {
           )}
           <div className="topbar-right">
             {oldestSync && <span className="meta">synced {oldestSync}</span>}
+            {briefSource && (
+              <button
+                onClick={() => void queueBrief()}
+                disabled={briefQueued}
+                title="Rerun the PM brain: queues a request the sync picks up within ~5 min; the fresh brief and actions land a few minutes after"
+              >
+                {briefQueued ? 'brief queued ✓' : '✦ new brief'}
+              </button>
+            )}
             <button onClick={() => void refresh()} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>

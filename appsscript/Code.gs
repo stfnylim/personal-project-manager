@@ -47,6 +47,15 @@ function doPost(e) {
       body.field = 'status';
       body.value = body.status;
     }
+    if (body.action === 'requestBrief') {
+      // Queue a brain rerun; the instance's sync sees the row and spawns the brain.
+      const sheet = ensureSheet('Pending', PENDING_HEADERS);
+      const id = Utilities.getUuid();
+      const range = sheet.getRange(sheet.getLastRow() + 1, 1, 1, PENDING_HEADERS.length);
+      range.setNumberFormat('@');
+      range.setValues([[id, nowString(), '_pm', 'brief_request', '']]);
+      return jsonOut({ ok: true, id: id });
+    }
     if (body.action === 'setField') return handleSetField(body);
     if (body.action) return jsonOut({ ok: false, error: 'unknown action: ' + body.action });
 

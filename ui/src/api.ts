@@ -240,6 +240,21 @@ export async function sendTaskChange(
   if (!data.ok) throw new Error(data.error || 'write failed');
 }
 
+/** Queue a PM-brain rerun for this instance. The instance's sync (running every few
+ *  minutes on its machine) sees the request and spawns the brain; the fresh brief
+ *  lands on the sheet when it finishes (~5-10 min end to end). */
+export async function requestBrief(src: Source): Promise<void> {
+  if (!src.writeSecret) throw new Error('this connection is read-only');
+  const res = await fetch(src.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ secret: src.writeSecret, action: 'requestBrief' }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { ok: boolean; error?: string };
+  if (!data.ok) throw new Error(data.error || 'write failed');
+}
+
 /** Days until a YYYY-MM-DD deadline: 0 = today, negative = overdue. */
 export function daysUntil(due?: string): number | null {
   const m = (due || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);

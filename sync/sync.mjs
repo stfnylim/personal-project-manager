@@ -11,7 +11,7 @@
 import { readFileSync, readdirSync, statSync, existsSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 
 // Windows editors and PowerShell often write a UTF-8 BOM, which would silently
 // break the ^-anchored parsers (a BOM'd "## …" heading stops matching).
@@ -51,10 +51,15 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
     console.error('sync: could not fetch pending changes (continuing without)');
   }
   let edited = false;
+  let briefRequested = false;
   for (const change of pendingList) {
     const { id, project, field, value } = change;
     if (!id) continue;
     appliedIds.push(id); // acknowledged either way — a bad row must not poison the queue
+    if (field === 'brief_request') {
+      briefRequested = true;
+      continue;
+    }
     if (field === 'task_state' || field === 'task_delete') {
       let tp;
       try {
@@ -126,6 +131,31 @@ if (!DRY && !config.webhookUrl.startsWith('PASTE') && config.readToken) {
       execSync(`git -C "${root}" commit -m "dashboard: apply queued changes"`, { stdio: 'ignore' });
     } catch {
       console.error('sync: git commit of applied changes failed (continuing)');
+    }
+  }
+  if (briefRequested) {
+    // The brain runs minutes-long, so it must outlive this sync. Handing it to
+    // Task Scheduler (a pre-registered, trigger-less "PM Brain" task) detaches it
+    // from this process tree entirely — job objects and sandboxes can't reap it.
+    // Its own final step syncs again, delivering the fresh brief to the sheet.
+    const taskName = config.brainTask || 'PM Brain';
+    try {
+      execSync(`schtasks /Run /TN "${taskName}"`, { stdio: 'ignore' });
+      console.log(`brief requested from dashboard — started scheduled task "${taskName}"`);
+    } catch {
+      // Fallback for machines without the task registered: detached spawn.
+      const brainScript = join(repoRoot, 'pm-brain', 'run-brain.ps1');
+      if (existsSync(brainScript)) {
+        const ps = spawn(
+          'powershell.exe',
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', brainScript],
+          { detached: true, stdio: 'ignore', windowsHide: true },
+        );
+        ps.unref();
+        console.log('brief requested from dashboard — PM brain spawned directly (no scheduled task found)');
+      } else {
+        console.error(`sync: brief requested but neither the "${taskName}" task nor run-brain.ps1 is available`);
+      }
     }
   }
 }

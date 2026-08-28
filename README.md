@@ -158,6 +158,11 @@ sync so the brief lands in the sheet's **Summary** tab and the dashboard home sc
   under "Scheduled" in the app sidebar). Tasks run while the app is open; if the app was closed
   at the scheduled time, the run happens on next launch. Use "Run now" in the sidebar for an
   on-demand brief.
+- **From the dashboard:** the **✦ new brief** button (write builds, one scoped instance) queues a
+  `brief_request`; that instance's sync sees it within ~5 minutes and starts the trigger-less
+  **"PM Brain"** scheduled task, so the brain outlives the sync process. Register the task once
+  per machine (falls back to a direct spawn if absent):
+  `Register-ScheduledTask -TaskName "PM Brain" -Action (New-ScheduledTaskAction -Execute wscript.exe -Argument '"<repo>\pm-brain\run-brain-hidden.vbs"')`
 - **Manual run:** double-click `pm-brain\run-brain.cmd` (or the "PM Brain" Desktop shortcut) —
   it drives the bundled CLI headlessly, shows progress, and logs to `pm-brain\last-run.log`.
   One-time setup first: the CLI's login is separate from the desktop app's, so run
