@@ -147,6 +147,23 @@ Ways to connect sources:
 - **Link:** repeat the params — `?src=…&token=…&label=Work&src=…&token=…&label=Life` — the
   triples are zipped in order.
 
+## Zero-paste session context
+
+`hooks/project-context.mjs` is a Claude Code **SessionStart hook**: when a session starts inside
+a repo that matches a tracked project's `repo:` frontmatter, it injects that project's status,
+tasks, and latest log entry as context — no pasted prompt needed. Wire it in user
+`settings.json`:
+
+```json
+"hooks": { "SessionStart": [ { "hooks": [ { "type": "command",
+  "command": "node \"<repo>\\hooks\\project-context.mjs\"" } ] } ] }
+```
+
+It resolves the projects dir from `config.work.json`/`config.life.json` (or pass a dir as the
+first argument), and prints nothing in untracked repos. Codex gets the same behavior by
+convention via the global `~/.codex/AGENTS.md`. The copy-prompt buttons remain for brand-new
+projects in brand-new repos, or to pin a specific task.
+
 ## PM brain
 
 A scheduled agent (phase 4) that rewrites `BRIEF.md` in the projects folder — headline, "needs
